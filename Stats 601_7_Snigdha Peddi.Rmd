@@ -1,0 +1,232 @@
+---
+title: "Homework 7"
+author: "Snigdha Peddi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r Libraries}
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("tidyr")
+library(tidyr)
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("survival")
+library(survival)
+#install.packages("survminer")
+library(survminer)
+#install.packages("coin")
+library("coin")
+#install.packages("LogrankA")
+library(LogrankA)
+#install.packages("data.table")
+library(data.table)
+```
+
+
+## References
+ + Lecture code
+ + Ani Katchova, **Survival Analysis**, 2013,(https://sites.google.com/site/econometricsacademy/econometrics-models/survival-analysis)
+ + Blogpost by Alboukadel Kassambara,Marcin Kosinski,Prcemyslaw Biecek, **survminer:Survival Analysis and Visualization**,(https://rpkgs.datanovia.com/survminer/)
+ + Lecture by Jonatan Lindh,**Logrank test in R**,OCtober 14,2016,(https://www.youtube.com/watch?v=HvrBFRzuCvA)
+
+## Exercises
+
+**Question 1.** (Question 11.2 on pg. 224 in HSAUR, modified for clarify) A healthcare group has asked you to analyze the **mastectomy** data from the **HSAUR3** package, which is the survival times (in months) after a mastectomy of women with breast cancer. The cancers are classified as having metastasized or not based on a histochemical marker. The healthcare group requests that your report should not be longer than one page, and must only consist of one plot, one table, and one paragraph. Make sure to keep track of the assumptions that go into a Kaplan-Meier test. Be explicit about what you are actually testing (hint: What types of censoring allows you to still do a valid test?)
+
+**a.** Plot the survivor functions of each group only using ggplot, estimated using the Kaplan-Meier estimate.
+**b.** Use a log-rank test (using `logrank_test()`) to compare the survival experience of each group more formally. Only present a formal table of your results.
+**c.** Write one paragraph summarizing your findings and conclusions.
+
+```{r Code-Chunk 1}
+#head(mastectomy)
+#table(mastectomy$metastasized)
+#summary(mastectomy)
+```
+
+
+```{r Code-Chunk 2}
+data("mastectomy")
+# Creating survival object
+msurv <-with(mastectomy,Surv(time,event))
+#msurv
+#mean of survival times
+#mean(msurv[1:3,1])
+#mean(mastectomy[1:3,1])
+```
+
+```{r Code-Chunk 3}
+
+time <- mastectomy$time
+event <- mastectomy$event
+group<- mastectomy$metastasized
+
+# Fitting Kaplan-Meier estimator
+mastectomyfit <-survfit(msurv~group,data=mastectomy)
+#mastectomyfit
+#summary(mastectomyfit)
+```
+
+```{r Code-Chunk 4}
+#plot(mastectomyfit,main="Survival Curves",ylab="Survival Probability",xlab="Survival Times in Months")
+
+```
+
+
+## Plot of Kaplan-Meier Estimate
+
+```{r Code-Chunk 5}
+ggsurvplot(mastectomyfit,data=mastectomy,pval=TRUE,conf.int=TRUE)+labs(title="Survival Curves of Breast Cancer Patients")
+```
+
+
+## Log-rank test
+
+```{r Code-Chunk 6}
+
+#survdiff(Surv(time,event)~group,data=mastectomy)
+
+```
+
+```{r Code-Chunk 7}
+X<-(logrank_test(Surv(time,event)~group,data=mastectomy,distribution="exact"))
+
+
+#Y <-(LogrankA(surv=Surv(time,event),group=group))$p.chi2
+```
+
+```{r Code-Chunk 8}
+
+Q1 <-(data.frame('pvalue of Logrank_test'=X@distribution@pvalue(X@statistic@teststatistic)))
+Q1
+```
+
+## Summary
+
+  Reviewing the survival object show that the event has occurred for 26 patients (death) and 18 patients are censored. The mean time of the patients survival after the mastectomy is 46.33 months.The Kaplan-Meier estimator was fit and shows that 26 events have occurred. The summary of the fit shows that for the group, metastasized the last event observed was at 143 months and has a survival probability of 0.295 and for the other group not based on histochemical marker,the last event occurred at 181 months and has a survival probability of 0.5.The Survival probabilities over time of both groups can be observed in the plot of the fit.The logrank_test is a non-parametric test that allows to estimate the survival function and can be used to compare the survival curves of 2 groups. The p value is marginal and not significant stating that the null hypothesis that the two groups do not differ in terms of survival is accepted.From the plot the probability of survival of patients classified as metastasized is less compared to the other group but as the p value suggests both groups are not significantly different.The p value obtained from the ggsurvplot function is 0.081 and from the Z statistics of logrank test is 0.06146077. Both the values suggest same thing that both the groups are not different.
+  
+  
+  
+  
+
+**Question 2.** An investigator collected data on survival of patients with lung cancer at Mayo Clinic. Use the **cancer** data located in the **survival** package. Write up in a narrative style appropriate for the statistical methods section of a research paper/technical report, making sure to address the following points of interest. Use a writing style appropriate for your field of work. Submissions that are not a formal write-up will receive zero credit for this portion of the assignment.
+
+  a. What is the probability that someone will survive past 300 days?
+  b. Provide a graph, including 95% confidence limits, of the Kaplan-Meier estimate of the entire study.
+  c. Is there a difference in the survival rates between males and females? Make sure to provide a formal statistical test with a p-value and visual evidence.
+  d. Is there a difference in the survival rates for the older half of the group versus the younger half?  Make sure to provide a formal statistical test with a       p-value and visual evidence.
+
+### OVERVIEW:
+
+  The Survival data of patients with advanced Lung Cancer is acquired from the North Central Cancer Treatment group and is stored as **cancer** data in the **survival** package.I will be computing the estimate of survival curve for the data using Kaplan-Meier estimate and study the survival probabilities of the Lung cancer patients at a perticular time during study,review the differences in the survival rates of the patients at different levels of covariates, age and sex.Discuss the statistical significance of these levels using logrank test with supporting plots.
+  
+### INTRODUCTION:
+
+  The Cancer data has records of 228 patients and has 12 variables. The covariates are institution code, Survival time in days, Status where the patient is dead or censored by end of the study, Age in years, Sex, ECOG performance scores, Karnofsky performance score related by physician and by patient, Calories consumed at meals and Weight loss in last six months. For the survival analysis the survival time in days and the status variables were used. 
+  
+### ANALYSIS AND DISCUSSION:
+
+  A Kaplan-Meier estimate is fit for the cancer data where time in days and the event(dead) is used as the dependent variable for survival curve.A *Surv* object is created and computed by the function *survfit*.
+  
+  \begin{verbatim}
+  surv <- Surv(time1,event1)
+  cancerfit1 <- survfit(surv~1,data=cancer)
+  \end{verbatim}
+
+  The summary of the estimate gives the description of the fit with time,number of patients at risk at given time,number of events occurred,survival probabilities at that time,lower and upper confidence intervals. The probability of someone surviving past certain time, probability of surviving to the end of the study, probability of survival past the study,number of events occurred ,number of patients at risk and other survival problems can be solved from the summary of the fit. Below is the survival probability of patients past 300 days.
+  
+```{r Code-Chunk 9}
+#dim(cancer)
+#head(cancer)
+#summary(cancer$age)
+```
+
+
+```{r Code-Chunk 10}
+time1<-cancer$time
+event1<-cancer$status
+group2<-cancer$age
+surv <- Surv(time1,event1)
+cancerfit1 <- survfit(surv~1,data=cancer)
+cancerfit1.summary <-summary(cancerfit1)
+T300 <-(summary(cancerfit1,time=300))
+cat("The probability that someone will survive past 300 days: ", T300$surv)
+```
+  
+  The summary of the fit can be clearly understood from the plot.Additionally, *ggsurvplot* function from **survminer** package is used to create a similar plot.A vertical reference line in both the plots at survival time of 300 days, further confirms the survival probability of someone past 300 days to be around 0.53.
+
+
+```{r Code-Chunk 11}
+plot(cancerfit1,main="Survival Curve of Cancer Patients",xlab="Time in Days",ylab="Survival Probability")
+abline(v=300)
+ggplot <-ggsurvplot(cancerfit1,data=cancer,conf.int=TRUE,pval=TRUE,ggtheme=theme_bw())+labs(title="Survival Curve of Cancer Patients:ggsurvplot")
+ggplot$plot+ geom_vline(xintercept = 300, color=3,size =0.5)
+
+```
+ 
+  The difference in the survival rates between males and females is studied. The different levels in the sex variable are Male and Female. A Kaplan-Meier estimate is fit by group for sex variable.
+
+ \begin{verbatim}
+ cancerfit.sex <- survfit(Surv(time1,event1)~sex,data=cancer)
+  \end{verbatim}
+  
+  A logrank test is performed to check if survival rates differ between males and females.
+
+```{r Code-Chunk 12}
+cancer<-cancer
+cancer<- cancer %>% mutate (sex=ifelse(sex==1,"Male","Female"))
+cancerfit.sex <- survfit(Surv(time1,event1)~sex,data=cancer)
+ cancer.logrank <-logrank_test(Surv(time1,event1)~as.factor(sex),data=cancer)
+ cat("p value of survival rates by sex: ",round(cancer.logrank@distribution@pvalue(cancer.logrank@statistic@teststatistic),3))
+
+```
+ 
+ A p value of 0.001 from Z statistics shows that the survival rates are significantly different between Male and Female patients at 95% confidence interval and I reject the null hypothesis that both the groups do not differ in terms of survival. This is further confirmed from the survival curve plots. The survival rate of the male patients is lower than the female patients.At 95% confidence interval both the curves are separated and the difference is significant. The p value obtained from *ggsurvplot* function is same as the p value obtained from Z statistics of logrank test and indicate that both the groups are significantly different.
+
+
+```{r Code-Chunk 13}
+
+plot(cancerfit.sex,lty=c(2,1),main="Survival Curve Stratified by Sex",xlab="Time in Days",ylab="Survival Probability")
+legend("topright",legend=c("Female","Male"),lty =c(2,1))
+ggsurvplot(cancerfit.sex,data=cancer,conf.int=TRUE,pval=TRUE)+labs(title="Survival Curve Stratified by Sex:ggsurvplot")
+```
+
+The difference in the survival rates between older half of the group and younger half of the group is studied. A median value of 63 years is used to divide the patients into two groups. All the patients below 63 are considered Young and above 63 are considered as Old.A Kaplan-Meier estimate is fit by group for age variable.
+
+ \begin{verbatim}
+ cancerfit.age <- survfit(Surv(time1,event1)~age,data=cancer)
+  \end{verbatim}
+  
+  A logrank test is performed to check if survival rates differ between Younger and Older Patients.
+
+
+```{r Code-Chunk 14}
+
+cancer<- cancer %>% mutate (age=ifelse(age>=63,"Old","Young"))
+cancerfit.age <- survfit(Surv(time1,event1)~age,data=cancer)
+age.logrank <-logrank_test(Surv(time1,event1)~as.factor(age),data=cancer)
+ cat("p value of survival rates by age: ", round(age.logrank@distribution@pvalue(age.logrank@statistic@teststatistic),3))
+```
+  
+  A p value of 0.388 from Z statistics shows that the survival rates are not significantly different between Younger and Older patients at 95% confidence interval and we accept the null hypothesis that both the groups do not differ in terms of survival. This is further confirmed from the survival curve plots. The survival rate of the Older patients is slightly lower than the Younger patients.At 95% confidence interval both the curves are overlapped and the difference is not significant. The p value obtained from *ggsurvplot* function is same as the p value obtained from Z statistics of logrank test and indicate that both the groups are not significantly different.
+
+```{r Code-Chunk 15}
+#plot(cancerfit.sex)
+#ggsurvplot(cancerfit.age,data=cancer)+labs(title="Survival Curves")
+
+plot(cancerfit.age,lty=c(2,1),main="Survival Curve Stratified by Age",xlab="Time in Days",ylab="Survival Probability")
+legend("topright",legend=c("Old","Young"),lty =c(2,1))
+ggsurvplot(cancerfit.age,data=cancer,conf.int=TRUE,pval=TRUE)+labs(title="Survival Curve Stratified by Age:ggsurvplot")
+```
+
+### CONCLUSION:
+
+ The Survival data of patients with advanced Lung Cancer (cancer data) from **survival** package is analyzed and Kaplan-Meier estimates were computed for survival curves.The survival probabilities of patients past 300 days was found to be 0.53. Survival curves were fit to investigate if the gender and age effects the survival probability.Logrank test is performed to obtain the p values.A significant p value of 0.001 from the fit by sex indicate that the the survival probabilities are significantly different between Male and Female patients at 95% confidence interval and from the plot it is clearly visible that the Female patients have higher survival probabilities than Male patients. Also, a p value of 0.39 from the fit by age (<63-Young, >63-Old) indicate that the age do not have significant effect on the survival probabilities and not significant at 95% confidence interval.The Survival curve confirms this analysis where both the curves of Young and Old patients are very close.
+
+
