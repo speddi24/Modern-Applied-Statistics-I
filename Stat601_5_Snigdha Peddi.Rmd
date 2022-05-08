@@ -1,0 +1,342 @@
+---
+title: "Homework 5"
+author: "Snigdha Peddi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r Libraries}
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("tidyr")
+library(tidyr)
+#install.packages("mlbench")
+library(mlbench)
+#install.packages("vcd")
+library("vcd")
+#install.packages("lattice")
+library("lattice")
+#install.packages("randomForest")
+library("randomForest")
+#install.packages("ggparty")
+#library("ggparty")
+#install.packages("partykit")
+library("partykit")
+#install.packages("mboost")
+library("mboost")
+#install.packages("TH.data")
+library("TH.data")
+#install.packages("ipred")
+library("ipred")
+#install.packages("rpart")
+library("rpart")
+#install.packages("ggdendro")
+library(ggdendro)
+```
+
+**Question 1.:** (Ex. 9.1 pg 186 in HSAUR, modified for clarity) The **BostonHousing** dataset reported by Harrison and Rubinfeld (1978) is available as a `data.frame` structure in the **mlbench** package (Leisch and Dimitriadou, 2009). The goal here is to predict the median value of owner-occupied homes  (`medv` variable, in 1000s USD) based on other predictors in the dataset. 
+
+**a)** Construct a regression tree using rpart(). Discuss the results, including these key components:
+    
+- How many nodes does your tree have? 
+        
+- Did you prune the tree? Did it decrease the number of nodes? 
+        
+- What is the prediction error (MSE)?  
+        
+- Plot the predicted vs. observed values. 
+        
+ - Plot the final tree.
+ 
+ 
+**References:** Ref1-Chapter_9Rcode.R, [Ref2 ](https://stackoverflow.com/questions/13751962/how-to-plot-a-large-ctree-to-avoid-overlapping-nodes),[Ref3](https://www.rdocumentation.org/packages/base/versions/3.6.2/topics/which.min),
+[Ref4](https://cran.r-project.org/web/packages/ggdendro/vignettes/ggdendro.html),
+[Ref5](https://rdrr.io/cran/ggdendro/man/ggdendrogram.html),[Ref6](https://stackoverflow.com/questions/56304698/how-do-i-plot-the-variable-importance-of-my-trained-rpart-decision-tree-model)
+ 
+ 
+ **Answer 1.a:** Constructed a regression tree using rpart() function and plotted the tree using plot function of **partykit** package. Adjusted the font size to get a clear picture of the tree.
+ 
+There is one Root node,7 Decision nodes and 9 Leaf nodes in the Tree.
+
+```{r Code Chunk-1}
+# Reading and understanding Bostonhousing Data
+data("BostonHousing")
+Bostonhousing <- BostonHousing
+#summary(Bostonhousing$medv)
+
+# Setting seed to get reproducible results
+set.seed(seed = 929270)
+Bostonhousing_rpart <- rpart(
+  medv~., data = Bostonhousing, 
+  control = rpart.control(minsplit = 10))
+
+# Plotting the regression tree using partykit library
+
+plot(as.party(Bostonhousing_rpart),gp = gpar(fontsize = 8),inner_panel=node_inner,  
+     tp_args = list(id = FALSE))
+
+
+```
+
+
+```{r}
+# Regression tree plot using ggparty
+#ax <-ggparty(Bostonhousing_rpart)+ geom_edge()+geom_label()+
+ # geom_node_splitvar(aes(col=factor(level),size=nodesize))+
+  #geom_node_info(aes(col=factor(level),size))
+```
+
+Used ggdendrogram function from **ggdendro** library to plot using ggplot2.
+
+```{r Code Chunk-2}
+ggdendrogram(Bostonhousing_rpart,segments = TRUE,labels=TRUE,leaf_labels=TRUE, rotate = FALSE, size = 4)+labs(title="Dendrogram of Bostonhousing regression tree")
+
+```
+The Complexity Paramater and Cross validation error is decreasing consistently at each split indicating that no pruning is necessary.If we prune on basis of the lower cross validation error, then both the pruned tree and unpruned tree will look alike.
+
+```{r Code Chunk-3}
+#printing statistics of CP table
+printcp(Bostonhousing_rpart)
+
+# Plot of cp vs cross validation error
+plotcp(Bostonhousing_rpart)
+```
+ 
+```{r}
+# printing the model
+#print(Bostonhousing_rpart)
+```
+
+
+### Regression Tree after pruning based on minimum cross validation error
+
+
+```{r Code Chunk-4}
+#Finding index of the split with minimum "xerror" of cptable
+opt <- which.min(Bostonhousing_rpart$cptable[,"xerror"])
+
+#cp of the split with minimum "xerror" of cptable
+
+cp <- Bostonhousing_rpart$cptable[opt, 'CP']
+
+#Pruning the  tree based on lower "xerror"
+Bostonhousing_prune <- prune(Bostonhousing_rpart, cp = cp)
+printcp(Bostonhousing_prune)
+
+#plotting the pruned tree
+plot(as.party(Bostonhousing_prune),gp = gpar(fontsize = 6),inner_panel=node_inner,
+     to_args = list(id=FALSE))
+```
+The Variable Importance can be extracted using variable.importance parameter of fitted model to check which variables can be pruned to reduce the the cp and cross validation error.The variable importance is plotted using ggplot.
+
+```{r Code Chunk-5}
+#Variable Importance
+varimp<-as.data.frame(Bostonhousing_rpart$variable.importance)
+varimp
+
+
+df2 <- varimp %>% 
+  tibble::rownames_to_column() %>% 
+  dplyr::rename("variable" = rowname) %>% 
+ # dplyr::arrange(Bostonhousing_rpart$variable.importance) %>%
+  dplyr::mutate(variable = forcats::fct_inorder(variable))
+ggplot2::ggplot(df2) +
+  geom_col(aes(x = variable, y = Bostonhousing_rpart$variable.importance),
+           col = "black", show.legend = F) +
+  coord_flip() +
+  scale_fill_grey() +
+  theme_bw()+
+  labs(title='Variable Importance of Boustonhousing Regression Tree',x='Variable', y=' Importance')
+
+```
+
+### Regression Tree after pruning based on minimum Standard Error
+
+The standard error has increased after the 8th split and the tree can be pruned to lower the standard error by removing the last split based on ptratio variable.
+
+```{r Code Chunk-6}
+#Finding index of the split with minimum "xstd" of cptable
+opt <- which.min(Bostonhousing_rpart$cptable[,"xstd"])
+
+#cp of the split with minimum "xstd" of cptable
+
+cp <- Bostonhousing_rpart$cptable[opt, 'CP']
+
+#Pruning the  tree based on lower Standard Error
+Bostonhousing_prune <- prune(Bostonhousing_rpart, cp = cp)
+#Bostonhousing_prune
+printcp(Bostonhousing_prune)
+
+#plotting the pruned tree
+plot(as.party(Bostonhousing_prune),gp = gpar(fontsize = 6),inner_panel=node_inner,
+     to_args = list(id=FALSE))
+```
+
+### Predicted vs Observed values
+
+Plotted the Predicted median values vs observed mean values.It is clear from the plot that there are few observations that are predicted incorrectly in each bin. 
+
+
+```{r Code Chunk-7}
+## RP-Bostonhousing-predict
+Bostonhousing_pred <- predict(Bostonhousing_rpart, newdata = Bostonhousing)
+xlim <- range(Bostonhousing$medv)
+plot(Bostonhousing_pred ~ Bostonhousing$medv, data = Bostonhousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim,main="Bostonhousing-Median Value of Owner Occupied Homes")
+abline(a = 0, b = 1)
+```
+```{r Code Chunk-8}
+bostonhousing_ggplot<-data.frame(cbind(Observed=Bostonhousing$medv,Predicted=Bostonhousing_pred))
+ggplot(data=bostonhousing_ggplot,aes(x=Observed,y=Predicted))+geom_point()+geom_smooth(method="lm")+
+  labs(title='Bostonhousing-Median Value of Owner Occupied Homes:ggplot', x='Observed', y='Predicted')
+```
+
+
+### MSE
+
+```{r Code Chunk-9}
+## Calculate mean square error (MSE)
+
+MSE_rpart<-mean((Bostonhousing$medv - Bostonhousing_pred)^2)
+
+cat("MSE of the BostonHousing Regression Tree:",MSE_rpart)
+```
+    
+**Question 1.b:** Apply bagging with 50 trees. Report the prediction error (MSE) and plot the predicted vs observed values.
+
+**References:** Ref1-Chapter_9Rcode.R
+
+**Answer 1.b:** 50 base learners(decision trees) were modeled. A plot of Predicted median values and Observed values id generated.MSE of the results model is 16.24467.Though Boots trapping technique is used for bagging, all the features are considered for splitting a node of the base learners.This will results in the models which predict based on variables that are not correlated with the dependent variable and leading to high standard error.
+
+```{r Code Chunk-10}
+set.seed(seed = 929270)
+# Bagging with 50 trees to generate a regression tree with rpart()
+trees <- vector(mode = "list", length = 50)
+n <- nrow(Bostonhousing)
+bootsamples <- rmultinom(length(trees), n, rep(1, n)/n)
+mod <- rpart(medv ~ ., data = Bostonhousing, 
+             control = rpart.control(xval = 0))
+for (i in 1:length(trees))
+  trees[[i]] <- update(mod, weights = bootsamples[,i])
+
+
+# Making Predictions
+Bostonhousing_bag_pred <- predict(mod, newdata = Bostonhousing)
+
+# Calculating MSE
+MSE_bagging <-mean((Bostonhousing$medv - Bostonhousing_bag_pred )^2)
+cat("MSE of the BostonHousing model after Bagging with 50 trees:",MSE_bagging)
+
+
+#Plotting Predicted values vs observed values
+
+xlim <- range(Bostonhousing$medv)
+plot(Bostonhousing_bag_pred  ~ Bostonhousing$medv, data = Bostonhousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim,main="Bostonhousing-Median Value of Owner Occupied Homes:Bagging")
+abline(a = 0, b = 1)
+
+# Plotting with ggplot
+bostonhousing_bagging<-data.frame(cbind(Observed=Bostonhousing$medv,Predicted=Bostonhousing_bag_pred))
+
+
+ggplot(data=bostonhousing_bagging,aes(x=Observed,y=Predicted))+geom_point()+geom_smooth(method="lm")+
+  labs(title='Bostonhousing-Median Value of Owner Occupied Homes:Bagging-ggplot', x='Observed', y='Predicted')
+
+
+# table showing number of times a variable is used as a root node
+#table(sapply(trees, function(x) 
+#  as.character(x$frame$var[1])))
+
+```
+
+**Question 1.c:** Apply bagging using the randomForest() function. Report the prediction error (MSE). Was it the same as (b)? If they are different what do you think caused it?  Plot the predicted vs. observed values.
+
+**References:** Ref1-Chapter_9Rcode.R,[Ref6](https://datascienceplus.com/random-forests-in-r/#:~:text=Random%20Forests%20are%20similar%20to,the%20Trees%20by%20averaging%20them.),[Ref7](https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest)
+
+**Answer 1.C:** In randomforest the data for the base learners is extracted by bootstrapping (row sampling with replacement technique) and predictions were made by aggregation.Only part of the training data is used by each learner.This will reduce the overfitting and overall high variance caused by individual base learner(decision tree in this case).
+  The MSE of the bagging model using randomForest function is 10.6458 and is lower than the bagging using rpart() function.This is because the randomForest function uses best split feature to split each node of the tree rather than considering all the features thus reducing the overall variance.
+  The plot between predicted and observed median values of home owners shows that majority of predictions are close to the real values though there are outliers.
+
+
+```{r Code Chunk-11}
+#Setting seed
+set.seed(seed = 929270)
+
+#Randomforest using all variables(bagginf method)
+rf_bagging=randomForest(medv~.,data=Bostonhousing,mtry=13,ntree=50)
+pred_rf_bagging= predict(rf_bagging,data=Bostonhousing)
+
+# Calculating the MSE
+MSE_rf_bagging <- mean((Bostonhousing$medv-pred_rf_bagging)^2)
+cat("MSE of the BostonHousing Regression Tree:",MSE_rf_bagging )
+```
+```{r Code Chunk-12}
+#Plotting Predicted values vs observed values
+
+xlim <- range(Bostonhousing$medv)
+plot(pred_rf_bagging ~ medv, data = Bostonhousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim,main="Median Value of Owner Occupied Homes:Randomforest-Bagging")
+abline(a = 0, b = 1)
+
+#ggplot
+
+bostonhousing_rf_bagging<-data.frame(cbind(Observed=Bostonhousing$medv,Predicted=pred_rf_bagging))
+
+ggplot(data=bostonhousing_rf_bagging,aes(x=Observed,y=Predicted))+geom_point()+geom_smooth(method="lm")+
+  labs(title='Median Value of Owner Occupied Homes:Randomforest-Bagging-ggplot', x='Observed', y='Predicted')
+
+```
+
+**Question 1.d:** Use the randomForest() function to perform random forest. Report the prediction error (MSE).  Plot the predicted vs. observed values.
+
+**References:** Ref1-Chapter_9Rcode.R,[Ref7](https://www.rdocumentation.org/packages/randomForest/versions/4.6-14/topics/randomForest)
+
+**Answer 1.d:** The lower MSE of the model using randomForest function than the MSE using random forest and bagging is due to the Feature sampling at each node of the tree. Only few features are randomly selected in each base learner.
+    
+```{r Code Chunk 13}
+#Setting seed
+set.seed(seed = 929270)
+
+#Randomforest using all variables(bagginf method)
+rf=randomForest(medv~.,data=Bostonhousing)
+pred_rf= predict(rf,data=Bostonhousing)
+
+# Calculating the MSE
+MSE_rf <- mean((Bostonhousing$medv-pred_rf)^2)
+cat("MSE of the BostonHousing Regression Tree:",MSE_rf )
+```
+```{r Code Chunk 14}
+xlim <- range(Bostonhousing$medv)
+
+plot(pred_rf~ medv, data = Bostonhousing, xlab = "Observed", 
+     ylab = "Predicted", ylim = xlim, xlim = xlim,main="Median Value of Owner Occupied Homes:Randomforest")
+abline(a = 0, b = 1)
+
+#ggplot
+
+bostonhousing_rf<-data.frame(cbind(Observed=Bostonhousing$medv,Predicted=pred_rf))
+
+ggplot(data=bostonhousing_rf,aes(x=Observed,y=Predicted))+geom_point()+geom_smooth(method="lm")+
+  labs(title='Median Value of Owner Occupied Homes:Randomforest-ggplot', x='Observed', y='Predicted')
+
+```
+    
+    
+
+**Question 1.e)** Include a table of each method and associated MSE. Which method is more accurate?
+
+**Answer 1.e:** The comparison of MSE of all the methods shows that Random forest is more accurate than other methods.This is due to bootstrapping aggregation along with feature sampling at each node.As random sample of data is used by each model and best variable is used to split the tree at each node, it returns better predictions and reduce overfitting.
+
+```{r Code Chunk-15}
+
+MSE_comparision <-data.frame(RandomForest=MSE_rf,RandomForest_bagging=MSE_rf_bagging,Bagging=MSE_bagging,rpart=MSE_rpart)
+MSE_comparision
+
+```
+ 
+    
