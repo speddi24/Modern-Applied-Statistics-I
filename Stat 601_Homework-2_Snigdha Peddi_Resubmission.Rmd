@@ -1,0 +1,549 @@
+---
+title: "Homework 2"
+author: "Snigdha Peddi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r libraries}
+
+# libraries used for Homework 1
+
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("MASS")
+library (MASS)
+#install.packages("gamair")
+library(gamair)
+#install.packages("ISLR")
+library(ISLR)
+#install.packages("caret")
+library(caret)
+#install.packages("e1071")
+library(e1071)
+```
+
+
+**Question 1:** (Ex. 7.2 in HSAUR, modified for clarity) Collett (2003) argues that two outliers need to be removed from the \textbf{plasma} data. Try to identify those two unusual observations by means of a scatterplot. (Hint: Consider a plot of the residuals from a simple linear regression.)
+
+**Answer 1:** The p values of the simple linear regression model obtained from the plasma date with ESR as dependent variable show that fibrinogen is significant at 95% confidence level.Upon fitting a model between ESR and fibrinogen the plot of residuals indicates that the two outliers are the ones with residuals of about 1.5 and -1.2. These are the outliers with record numbers 13(fibrinogen 5.06) and record 23(fibrinogen=2.09) which are the minimum and maximum values of the feature.Similar trend is observed in QQ plots. These are the two unusual observations that have to be removed.
+.
+```{r}
+#str(plasma)
+#is.factor(plasma$ESR)
+#levels(plasma$ESR)
+#contrasts(plasma$ESR)
+#par(mfrow=c(1,2)) 
+```
+
+```{r}
+
+  #layout(matrix(1:2, ncol = 2))
+ # boxplot(fibrinogen ~ ESR, data = plasma, varwidth = TRUE)
+  #boxplot(globulin ~ ESR, data = plasma, varwidth = TRUE)
+```
+
+
+```{r Question 1}
+
+#scatter.smooth(x=plasma$fibrinogen, y=plasma$ESR, main="Dist ~ Speed")
+
+# fitting simple linear regression model with ESR as dependent variable and fibrinogen as independent variable.
+
+linearMod <- lm(fibrinogen ~ ESR, data=plasma) 
+
+# fitting simple linear regression model with ESR as dependent variable and fglobulin as independent variable.
+
+linearMod1 <- lm(globulin ~ ESR, data=plasma) 
+
+# To check the coefficients,intercept, other relations.
+
+summary(linearMod) 
+
+summary(linearMod1)
+
+# Summary of feature-fibrinogen
+cat("Summary:", summary(plasma$fibrinogen))
+
+# plotting the residuals vs predicted values 
+
+plot(linearMod,which=c(1,2),sub.caption= "ESR vs Fibrinogen")
+
+
+```
+
+**Question 2.** (Ex. 6.6 in HSAUR, modified for clarity) (Multiple Regression) Continuing from the lecture on the \textbf{hubble} data from \textbf{gamair} library:
+
+
+**a)** Fit a quadratic regression model, i.e., a model of the form
+$$\text{Model 2:   } velocity = \beta_1 \times distance + \beta_2 \times distance^2 +\epsilon$$
+```{r Question 2.a}
+
+data(hubble)
+
+#add the x^2 variable to the hubble data set
+
+hubble.new <- hubble %>% mutate(x2 = x^2)
+
+```
+
+```{r}
+#fit a quadratic model to the new hubble data set
+
+Model2 <- lm(y ~ x+x2 -1,data=hubble.new)
+print("Summary of Quadratic Model:")
+summary(Model2)
+```
+
+**b)** Plot the fitted curve from Model 2 over the scatterplot of the data.
+    
+```{r Question 2.b}
+
+# Scatter plot of hubble data
+
+plot(y~x ,data=hubble,
+      xlab="Distance in Mega Parsecs",
+      ylab="Velocity in km/s",
+        main=" Scatter Plot of Velocity ~ Distance with Fitted Line")
+
+# Adding a regression line 
+lines(smooth.spline(hubble$x,predict(Model2)),col="blue",lwd=3)
+
+#plot(Model2,which=1,sub.caption= "Residual Plot for Model2")
+
+
+```
+    
+    
+**c)** Add a simple linear regression fit over this plot. Use the relationship between \textit{velocity} and \textit{distance} to determine the constraints on the parameters and explain your reasoning. Use different color and/or line type to differentiate the two and add a legend to differentiate between the two models.
+    
+**Answer 2.c:** The added parameter of the quadratic model is increasing the variance and residual error. It is clearly visible in the plots that this added parameter is not very significant.
+    
+```{r Question 2.c}
+# Fitting a Linear Model
+Model3 <- lm(y ~ x -1,data=hubble)
+print("Summary of Linear Model:")
+summary(Model3)
+
+#Scatter plot of bubble data
+plot(y~x ,data=hubble,
+      xlab="Distance in Mega Parsecs",
+      ylab="Velocity in km/s",
+      main=" Comparision between Linear & Quadratic Models of Hubble Data")
+
+#Adding a regression line of Linear Model
+abline(Model3,col="red")
+
+#Adding a regression line for Quadratic model
+lines(smooth.spline(hubble$x,predict(Model2)),col="blue",lwd=3)
+
+#Adding Legend
+
+legend("topleft",legend=c("Quadratic Model","Linear Model"),col=c("blue","red"),lty=1,cex=0.8)
+
+```
+
+```{r}
+#Extracting predicted y values from Quadratic model
+y2 <- predict(Model2,list(x=hubble.new$x, x2=hubble.new$x2))
+
+#create a data frame of x nd y values for plotting
+data1<- as.data.frame(cbind(hubble.new$x,y2))
+
+#Extracting predicted y values from Linear model
+y3 <- predict(Model3,list(x=hubble$x))
+
+#create a data frame with distance and the vel2 object created above
+data2 <- as.data.frame(cbind(hubble$x,y3))
+
+#use ggplot to plot the hubble data on a scatter plot and plot the predicted values with a line.
+#add a simple linear regression line to the plot using geom_smooth
+ggplot(data=hubble,aes(x=x,y=y)) +
+   geom_point() +
+   geom_line(data=data1,aes(x=hubble.new$x,y=y2),color='blue',lwd=1.5) +
+   geom_line(data=data2,aes(x=hubble.new$x,y=y3),color='red',lwd=1)+
+   labs(title="Linear and Quadratic Model of Hubble Data using ggplot",
+        x='Distance in Mega Parsecs',
+        y='Velocity in km/s') 
+```
+
+**d)** Examine the plot, which model do you consider most sensible?
+    
+**Answer 2.d:** After examining the plot and both the regression lines I believe that the simple linear model is most sensible than the Quadratic model as residual error and variance are less.The x^2 variable of the quadratic model is not very significant.
+    
+**e)** Which model is better? Provide a statistical justification for your choice of model.
+    
+**Answer 2.e:** Comparing the the summaries of two models clearly shows that the added variable of quadratic model is not significant as its p value is higher. Though the Residual errors and Adjusted R-squared of both models are similar the standard error of linear model(3.965) is smaller than the quadratic model(16.5726) indicating that for Hubbles data simple linear regression model is good fit.
+  The comaprision between the two models using Chi square test also shows that the Quadratic model is not very significant and X2 variable is not improving the model.
+```{r Question 2.e}
+
+# Interpreting the models
+#summary(Model2)
+#summary(Model3)
+
+#comparing the two models using ANOVA
+anova(Model3,Model2,test="Chisq")
+
+```
+    
+    
+Note: The quadratic model here is still regarded as a `linear regression` model since the term `linear` relates to the parameters of the model and not to the powers of the explanatory variables. 
+
+**Question 3.** (Ex. 7.4 in HSAUR, modified for clarity) The \textbf{leuk} data from package \textbf{MASS} shows the survival times from diagnosis of patients suffering from leukemia and the values of two explanatory variables, the white blood cell count (wbc) and the presence or absence of a morphological characteristic of the white blood cells (ag). 
+
+
+**a)** Define a binary outcome variable according to whether or not patients lived for at least 24 weeks after diagnosis. Call it \textit{surv24}. 
+
+**Answer 3.a:** Using **dplyr** package **mutate** function a new variable "serv24" is added to leuk.dat data set where all observations with time >= 24 were assigned "1" and others "0".
+```{r Question 3.a}
+
+# Adding a binary variable surv24 with value 1 for survival time of 24 weeks or
+#greater and value 0 for survival time less than 24 weeks
+
+leuk.dat <- leuk %>% mutate(surv24 = ifelse(time >= 24, 1,0),logwbc = log(wbc))
+#leuk.dat <- leuk %>% mutate(logwbc = log(wbc))
+
+```
+    
+    
+**b)** Fit a logistic regression model to the data with \textit{surv24} as the response variable. If regression coefficients are close to zero, then apply a log transformation to the corresponding covariate. Write the model for the fitted data (see Exercise 2a for an example of a model.)
+
+**Answer 3.b:** A Logistic Regression model is fit with wbc and ag as independent variables and serv24 as dependent variable.As the regression coefficients of wbc are close to zero another model with natural log of wbc is fit.
+    
+```{r Question 3.b}
+# Logistic regression model
+Model.serv24 <- glm(surv24 ~ wbc + ag, data=leuk.dat,family='binomial')
+print("Summary of Model.serv24:")
+summary(Model.serv24)
+
+message("\n")
+# get coefficients of the variables
+print("Coefficients of Model.serv24:")
+  coef(Model.serv24)
+message("\n")
+
+# Writing a model after log transformation of variable wbc
+Model.serv24.log <- glm(surv24 ~ log(wbc) + ag, data=leuk.dat,family='binomial')
+print("Summary of Model.serv24.log - after log transformation:")
+summary(Model.serv24.log)
+message("\n")
+# get coefficients of the variables
+print("Coefficients of Model.serv24.log:")
+coef(Model.serv24.log)
+#odds of survival(odds of survival if ag is present is 6 times more than when absent)
+
+```
+    
+    
+**c)** Interpret the final model you fit. Provide graphics to support your interpretation.
+    
+**Answer 3.c:** The Confusion matrix shows that the fit model is having an accuracy of 76% and an error rate of 24%.
+The first plot, ‘White Blood Cells vs Survival Past 24 Hours’, shows a high probability of living more than 24 weeks for patients with ag ‘present’ test result even with low wbc count and high probability of death if ag is absent.
+The second plot " Survival  Vs Appearance of Morphologic Characteristics of WBC" shows that the presence of ag results in survival of patients in almost every case and absence of ag results in death in every case.This atypical behavior have to be further investigated along with the significance of ag on survival.
+    
+```{r}
+# Accuracy of the fitted model
+#y <-leuk.dat$surv24-trunc(2*leuk.dat$fitted)
+#hits<-sum(y==0)
+#hitratio<-hits/length(y)
+#hitratio
+
+# Error rate of fitted model
+true <- leuk.dat$surv24
+pred <- factor(ifelse(Model.serv24.log$fitted>=0.50,"Yes","No"))
+#length(pred)
+truevalues <- factor(ifelse(true >= .5, "Yes", "No"))
+#length(truevalues)
+rate <- table(pred,True=truevalues)
+confusionMatrix(rate)
+error_rate <- 1-(rate[1,1]+rate[2,2])/sum(rate)
+cat("Error Rate: ", error_rate)
+```
+```{r}
+#summary(subset(leuk.dat,ag=="present"))
+#summary(subset(leuk.dat,ag=="absent"))
+```
+
+
+```{r Question 3.c}
+
+plot(leuk.dat$surv24~log(leuk.dat$wbc) ,data=leuk.dat,
+      xlab=" Log of WBC Count",
+      ylab="Probability Of Survival",
+      main="White Blood Cells vs Survival Past 24 Hours")
+points(log(leuk.dat$wbc)[leuk.dat$ag =="present"],Model.serv24.log$fitted[leuk.dat$ag =="present"],col="red")
+points(log(leuk.dat$wbc)[leuk.dat$ag =="absent"],Model.serv24.log$fitted[leuk.dat$ag =="absent"],col="green")
+legend("bottomleft",legend=c("ag=present","ag=absent"),col=c("red","green"),pch=1,cex=0.8)
+
+
+
+boxplot(leuk.dat$surv24~leuk.dat$ag ,data=leuk.dat,
+      xlab="Morphologic Characteristics of WBC",
+      ylab="Probability Of Survival",
+      main=" Survival  Vs Appearance of Morphologic Characteristics of WBC ")
+
+
+```
+    
+**d)** Update the model from part b) to include an interaction term between the two predictors. Which model fits the data better? Provide a statistical justification for your choice of model.
+
+**Answer 3.d:** Second model has a lower AIC value than the model without interaction term (42.167 vs 43.498)indicating that this model better represents the data.
+
+    
+```{r}
+#fitting the model with the interaction term ag * log(wbc)
+Model.serv24_new <- glm(surv24 ~  ag * log(wbc), data=leuk.dat,
+                        family='binomial')
+
+```
+
+```{r}
+# Interpreting the models
+print("Summary of Model.serv24:")
+summary(Model.serv24.log)
+
+print("Summary of Model.serv24_new:")
+summary(Model.serv24_new)
+
+#comparing the two models using ANOVA
+anova(Model.serv24.log,Model.serv24_new,test="Chisq")
+```
+
+    
+
+**Question 4.**  (Adapted from ISLR) Load the \textbf{Default} dataset from \textbf{ISLR} library. The dataset contains four features on 10,000 customers. We want to predict which customers will default on their credit card debt based on the observed features.
+
+**a)** Select a class of models using appropriate summaries and graphics. **Do not overplot.**
+ 
+**Answer 4.a:** 
+ -Initial exploratory analysis indicate that the mean salary of a student is around 17950 and mean balance on credit card is about 988 where as the mean income and balance of non-students are about 40012 and 772 respectively .
+ -There is a negative correlation between balance and income. As the income increases by a unit the balance reduces by 15%. 
+ -As the balance increases customers tend to default more.
+ -From the plot it is difficult to establish relationship between income and the default by customers.
+ 
+ After thorough investigation I believe generalized linear regression model of family binomial (logistic regression) is good model for this data set.
+ 
+
+```{r Question 4.a}
+#head(Default)
+# Summary of people who are not students 
+summary(Default[Default$student=="No",])
+
+# Summary of people who are students 
+summary(Default[Default$student=="Yes",])
+
+message("\n")
+# correlation between income and balance.
+print("Correlation between Balance and Income:")
+message("\n")
+round(cor(Default[,3:4]),2)
+
+# box plot showing relationship between income and if a person is student or not
+boxplot(income~student,data=Default,main="Relation between Income and Student")
+
+# Scatterplot showing relationship between income and if the person is student or not
+plot (income~balance, data=Default,main="Relation between Income and Student")
+points(Default$balance[Default$student=="Yes"],Default$income[Default$student=="Yes"],col="red")
+legend("topright",legend=c("Student=Yes","Student= No"),col=c("red","black"),pch = 1,cex=0.8)
+
+# box plot showing relationship between income and if the person defaults or not 
+boxplot(income~default, data=Default,main="Relation between Income and Default")
+
+# box plot showing relationship between income and balance
+boxplot(balance~default, data=Default,main="Relation between Income and Balance")
+
+# Scatterplot showing the relationship between balance and default
+
+plot (income~balance, data=Default,main="Relation between Balance and Default")
+points(Default$balance[Default$default=="Yes"],Default$income[Default$default=="Yes"],col="green")
+legend("topright",legend=c("Default=Yes","Default= No"),col=c("green","black"),pch = 1,cex=0.8)
+```
+
+```{r}
+
+# Boxplot showing relation between Income and default by Student status
+
+Default%>%
+  ggplot(aes(x=default,y=income)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +
+  facet_grid(student~.) +
+  labs(title='Income to Default By Student Status:ggplot',
+       x = 'Default',
+       y='Income (USD)')
+
+# Boxplot showing relation between Balance and default by Student status
+Default%>%
+  ggplot(aes(x=default,y=balance)) +
+  geom_boxplot() +
+  scale_y_continuous(labels = scales::dollar) +
+  facet_grid(student~.) +
+  labs(title='Balance to Default By Student Status:ggplot',
+       x = 'Default',
+       y='Balance (USD)')
+
+
+```
+The analysis of variance between income and default shows that there is a correlation between these features at 5% significance level and confirms that there is also a strong correlation between balance and default at 95% confidence interval.
+
+```{r}
+# Investigating correlation between income and default using ANOVA
+anova1 <- aov(income~default, data=Default)
+summary(anova1)
+print(model.tables(anova1,"means"),digits=3)
+
+# Investigating correlation between balance and default using ANOVA
+anova2 <- aov(balance~default, data=Default)
+summary(anova2)
+print(model.tables(anova2,"means"),digits=3)
+```
+
+    
+ **b)** State the class of models. Fit the appropriate logistic regression model.
+    
+**Answer 4.b:**  The class of both the models is glm (generalized linear model),lm(linear model)
+
+Two logistic regression models were fit.
+
+   \begin{itemize}
+    \item[Model 1:] default~student+balance+income
+    \item[Model 2:] default ~ student + balance + income + (student * income) + (balance * student) + (balance * income)
+    \end{itemize}
+    
+```{r}
+#Converting the dependent variable to a binary
+Default <- Default %>%
+  mutate(default = ifelse(default == 'Yes',1,0))
+```
+    
+```{r}
+
+#create a model with all features
+model.4a <- glm(default~student+balance+income,family="binomial",data=Default)
+
+#create a model with the interaction terms 
+model.4b <- glm(default ~ student + balance + income +student*income + balance*student +
+                  balance * income, data=Default, family=binomial())
+
+```
+
+```{r}
+
+cat("Class of model with all features:",class(model.4a),"\n")
+
+
+cat("Class of model with features and interaction terms:",class(model.4b))
+```
+
+    
+    
+**c)** Discuss your results, paying particular attention to which feature variables are predictive of the response. Are there meaningful interactions among the feature variables?
+    
+**Answer 4.c:** The student status and balance plays a significant role in predicting the customers who default. The interaction terms in the models are not significant at 95% confidance interval. The simpler logistic regression model with no interaction terms is best fit.Also, the lower Akaike information criterion (AIC) of the model confirms that simpler  model is better than the model with interaction terms.
+    
+```{r Question 4.c}
+summary(model.4a)
+summary(model.4b)
+```
+
+    
+**d)** How accurate is your model for predicting the response?  What is the error rate? 
+    
+**Answer 4.d:** The error rate for both the models is very low (~3%) and predicts the default customers with 97% accuracy. However, lower AIC of simpler logistic regression model (without interaction terms) suggests the simpler model is better in predicting the default customers ,avoids overfitting. This is further confirmed by the Chi square test which indicates the model with interaction terms is not significant at 0.05% significance level.
+     
+  
+```{r Question 4.d}
+
+#building confusion matrices and calculating the error rate for model with no interaction terms
+true <- Default$default
+pred.4a <- factor(ifelse(model.4a$fitted >=0.50,"Yes","No"))
+true.4<- factor(ifelse(true >= .5, "Yes", "No"))
+Table1<- table(pred.4a,True=true.4)
+confusionMatrix(Table1)
+error_rate <- 1-(Table1[1,1]+Table1[2,2])/sum(Table1)
+cat("Error Rate of model without interaction terms:", error_rate)
+```
+
+```{r}
+#building confusion matrices and calculating the error rate for model with interaction terms
+true <- Default$default
+pred.4b <- factor(ifelse(model.4b$fitted >=0.50,"Yes","No"))
+true.4<- factor(ifelse(true >= .5, "Yes", "No"))
+Table2<- table(pred.4b,True=true.4)
+confusionMatrix(Table2)
+error_rate <- 1-(Table2[1,1]+Table2[2,2])/sum(Table2)
+cat("Error Rate of model with interaction terms:", error_rate)
+```
+
+```{r}
+# Comparision of models by Anova
+anova(model.4a,model.4b,test='Chisq')
+```
+
+
+**5.** Go through Section 7.3.1 of HSAUR. Run all the codes (additional exploration of data is allowed) and write your own version of explanation and interpretation. \textit{For this problem, please show the code of function you created as well as show the output. You can do this by adding} `echo = T` \textit{to the code chunk header.}
+
+**Answer 5:** The density plots describe the distribution of variables fibrinogen and globulin.
+```{r Question 5,echo=T}
+
+# Exploring top data variables
+head(plasma)
+
+layout(matrix(1:2,ncol=2))
+
+# Plotting density plot for ESR vs other features
+cdplot(ESR ~ fibrinogen,data=plasma)
+cdplot(ESR ~ globulin,data=plasma)
+```
+
+Fitting a Generalized linear model where family is binomial with a logit link function(logistic regression). ESR is the dependent variable and fibrinogen is the independent variable.The summary of the model shows that fibrinogen is significant at 0.05% significance level.The coefficient of fibrinogen indicates that a change from ESR<20 to ESR>20,increases the log odds in fav of ESR value greater than 20 by 1.83 times at 95% confidence interval.
+```{r, echo=T}
+# Fit the logistic regression model
+plasma_glm_1 <-glm(ESR~fibrinogen,data=plasma,family=binomial())
+# Summary of the model
+summary(plasma_glm_1)
+
+```
+Exponentiating the confidence intervals and coefficients will get the odds of the values which can me more helpful. The confidence interval is higher as number of observations with ESR value greater than 20 are less.
+```{r, echo=T}
+#confidence interval
+confint(plasma_glm_1,parm="fibrinogen")
+
+#Exponentiating the estimates
+cat("odds of fibrinogen:",exp(coef(plasma_glm_1)["fibrinogen"]),"\n")
+
+# #Exponentiating the confidence intervels
+exp(confint(plasma_glm_1,parm="fibrinogen"))
+```
+
+A  logistic regression model with both the explanatory variables is fit and the summary of the model indicates that the variable,globulin is not significant at 95% confidence interval and the coefficint of globulin is almost zero and not very significant.
+```{r,echo=T}
+
+# Fitting logistic regression with both the explanatory variables.
+plasma_glm_2 <-glm(ESR~fibrinogen+globulin,data=plasma,family=binomial())
+
+# Summary of the new model
+summary(plasma_glm_2)
+```
+The above fitted two nested models are compared by Chi Square test using the anova function.The AIC of the model with variable fibrinogen is less than the one with both variables(28.84 vs 28.971) indicating model with fibrinogen is better over later model. Subtracting residual deviance of model 2 from model 1 (24.84-22.97) is 1.87,with single degree of freedom and high p value,this added variable is not improving the model and is not significant at 5% level.So, we can conclude that the globulin is not significant in predicting the ESR.
+
+```{r, echo=T}
+
+# comparing the models with anova function
+anova(plasma_glm_1,plasma_glm_2,test="Chisq")
+
+# Plotting the predicted values from second model against both explanatory variables
+
+prob <- predict(plasma_glm_2,type="response")
+
+plot(globulin~fibrinogen,data=plasma,xlim=c(2,6),ylim=c(25,55),pch=".")
+symbols(plasma$fibrinogen,plasma$globulin, circles= prob,add=TRUE)
+```
+
