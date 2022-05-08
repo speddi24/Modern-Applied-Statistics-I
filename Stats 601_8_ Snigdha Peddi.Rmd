@@ -1,0 +1,389 @@
+---
+title: "Homework 8"
+author: "Snigdha Peddi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r Libraries}
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("tidyr")
+library(tidyr)
+#install.packages("mlbench")
+library(mlbench)
+#install.packages("partykit")
+library(partykit)
+#install.packages("mboost")
+library(mboost)
+#install.packages("rpart")
+library(rpart)
+#install.packages("TH.data")
+library(TH.data)
+#install.packages("gamlss.data")
+library(gamlss.data)
+#install.packages("lattice")
+library(lattice)
+#install.packages("quantreg")
+library("quantreg")
+
+```
+
+## Exercises
+
+**Question 1.** Apply a median regression analysis on the **clouds** data. Compare this to the linear regression model from Chapter 6. Write up a formal summary of the two analyses and provide a justified recommendation on which analysis the researcher should be using.
+
+
+### INTRODUCTION:
+
+  *Clouds* data from **HSAUR3** package consists of experimental data investigating the use of massive amounts of Silver Iodide (100 to 1000 grams per cloud) in cloud seeding to increase rainfall.This data is collected from an area in Florida ,in the summer of 1975. 24 Days were judged suitable for seeding based on the measured suitability criterion. This data has 24 observations and 7 variables.These variables include *Seeding* which is factor indicating if seeding has occurred,*time* is the number of days after the first day of experiment, *sne* is the suitability criterion, *cloudcover* is percentage of experimental area covered with clouds, *prewetness* is the total rainfall in the target area one hour before seeding, *echomotion* is a factor showing if the radar echo is moving or stationary and *rainfall* is the amount of rain in cubic meters times 10^7.
+ 
+ 
+### ANALYSIS AND RESULTS:
+
+  The Clouds data is studied and presented by Brian S. Everitt and Torsten Hothorn in their book, A Handbook of Statistical Analyses using R. A Linear regression model is fit using rainfall as dependent variable. Seeding, time and interaction terms for seeding were used as the covariates in this model.
+  
+  
+   \begin{verbatim}
+  clouds_formula<- rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time
+  clouds_lm <-lm(clouds_formula,data=cloud)
+  \end{verbatim}
+  
+  
+```{r Code-Chunk-1}
+
+cloud<- clouds
+#head(cloud)
+clouds_formula<- rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time
+clouds_lm <-lm(clouds_formula,data=cloud)
+#class(clouds_lm)
+#summary(clouds_lm)
+data.frame( "Coefficients of Linear Model"= clouds_lm$coefficients,"p-value"=summary(clouds_lm)$coef[,"Pr(>|t|)"])
+```
+  
+  
+  The Linear model of clouds data suggests that seeding the clouds increases the rainfall and higher value of SNe leads to lower rainfall when seeding is done. The interaction of Sne significantly effects rainfall. The lower p values of less than 0.05 indicates that the effect is significant at 95% confidence interval. The Residual vs fitted plot shows that the residuals forms a curve and are not normally distributed and Quantile-qunatile plot resulted in an approximately straight line showing that the residuals are approximately normally distributed.Removing the outliers and refitting the model can improve the model.
+  
+
+```{r Code-Chunk-2}
+plot(clouds_lm,which=c(1,2))
+```
+
+   
+   The relationship between rainfall and S-Ne for seeding and non-seeding days is plotted and a linear regression is fit for both seeding and non seeding data.The plots indicates that for a lower S-Ne value,seeding produces more rainfall than non-seeding.A cross over is observed around a S-Ne value of 4.0 indicating that seeding has to be done at S-Ne values lower than 4.0 to improve the rainfall. Similar plot is created using ggplot2.
+   
+   
+```{r Code-Chunk-3}
+psymb<-as.numeric(cloud$seeding)
+plot(rainfall~sne,data=cloud,pch=psymb,xlab="S-Ne criterion",main="Effect of S-Ne and Seeding on Rainfall")
+abline(lm(rainfall~sne,data=clouds,subset=seeding=="no"))
+abline(lm(rainfall~sne,data=clouds,subset=seeding=="yes"),lty=2)
+legend("topright",legend=c("No seeding","Seeding"),lty=1:2)
+```
+```{r Code-Chunk-4}
+
+ggplot(cloud,aes(x=sne,y=rainfall,group=seeding,color=seeding))+geom_point()+geom_smooth(method="lm",se=FALSE)+ggtitle("Effect of S-Ne and Seeding on Rainfall") +
+  xlab("S-Ne") + ylab("Rainfall")
+
+```
+
+
+```{r Code-Chunk-5}
+cloud1 <- cloud %>% filter(rainfall<11)
+clouds_lm1 <-lm(clouds_formula,data=cloud1)
+#class(clouds_lm)
+#summary(clouds_lm1)
+#plot(clouds_lm1,which=c(1,2))
+
+#psymb<-as.numeric(cloud1$seeding)
+#plot(rainfall~sne,data=cloud1,pch=psymb,xlab="S-Ne criterion")
+#abline(lm(rainfall~sne,data=cloud1,subset=seeding=="no"))
+#abline(lm(rainfall~sne,data=cloud1,subset=seeding=="yes"),lty=2)
+#legend("topright",legend=c("No seeding","Seeding"),lty=1:2)
+
+```
+
+
+  To better understand the Clouds data and relationship between S-Ne and rainfall with and without seeding, a median Quantile regression model is fit. A Quantile regression model estimates the conditional median rather than the conditional mean estimates of linear regression model. This model will help us understand the relation between the variables at 50th percentile or 50% Quantile.
+
+
+  \begin{verbatim}
+  rq1 <- rq(rainfall ~ seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time, 
+  data = cloud, tau = 0.5)
+  \end{verbatim}
+  
+
+```{r Code-Chunk-6}
+rq1 <- rq(rainfall ~ seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time, data = cloud, tau = 0.5)
+data.frame( "Coefficients at 50th Quantile"= rq1$coefficients)
+```
+
+ 
+  \begin{verbatim}
+  rq2 <- rq(rainfall ~sne, data = cloud, tau = 0.5,subset=seeding=="yes")
+  rq3 <- rq(rainfall ~sne, data = cloud, tau = 0.5,subset=seeding=="no")
+  \end{verbatim}
+  
+  
+  
+```{r Code-Chunk-7}
+rq2 <- rq(rainfall ~sne, data = cloud, tau = 0.5,subset=seeding=="yes")
+#rq1$coef
+rq3 <- rq(rainfall ~sne, data = cloud, tau = 0.5,subset=seeding=="no")
+data.frame(Seeding= rq2$coef,"Non-Seeding"= rq3$coef)
+```
+
+  It is clear from the coefficients of the model that, at 50% Quantile, the regression line is less inclined (-1.39) when seeding is performed and has a negative slope (0.35) when no seeding is performed compared to the linear model with coefficients -2.78 and 0.42 respectively. From the plot, one can clearly see a cross over that occurs at around S-Ne of 3.4 indicating that when seeding is done at S-Ne values lower than 3.4 there is a greater potential for rainfall. A similar plot is created using ggplot2.
+
+
+```{r Code-Chunk-8}
+psymb<-as.numeric(cloud$seeding)
+plot(rainfall~sne,data=cloud,pch=psymb,xlab="S-Ne criterion",main="Effect of S-Ne & Seeding on Rainfall:Quantile Regression")
+abline(rq2,lty=2)
+abline(rq3)
+legend("topright",legend=c(" seeding","No Seeding"),lty=c(2,1))
+
+ggplot(cloud,aes(x=sne,y=rainfall,group=seeding,color=seeding))+geom_point()+stat_quantile(geom="quantile",quantiles=0.5,method="rq")+ggtitle("Effect of S-Ne and Seeding on Rainfall: Median Quantile Regression") +
+  xlab("S-Ne") + ylab("Rainfall")
+```
+
+### CONCLUSION:
+
+  
+  At the 50th quantile, there is no significant effect on rainfall when seeding is not performed and with seeding, increase in rainfall is by 9.25 X 10^7 cubic meters which is lower than linear regression model (15.68 x 10^7). The regression line is less inclined with a coefficient greater than the linear model (-1.39 > -2.78). I would recommend the use of Median Quantile regression over the linear regression as the effect of outliers is reduced at median level and it helps to understand the relation between S-Ne and Rainfall better, which in turn helps pick suitable days for seeding. 
+
+
+```{r Code-Chunk-9}
+#sum <-summary(rq2)
+#sum
+#par(mfrow=c(1,1))plot(sum,xlim=c(0.001,10), ylim=c(0.001,10), log="xy")
+```
+
+```{r Code-Chunk-10}
+#library(quantreg)
+#model.rq <- rq(Temp ~ Wind, airquality, tau=c(0.25, 0.5, 0.75))
+#quantile.regressions <- data.frame(t(coef(model.rq)))
+#colnames(quantile.regressions) <- c("intercept", "slope")
+#quantile.regressions$quantile <- rownames(quantile.regressions)
+#quantile.regressions
+#scatterplot <- qplot(x=Wind, y=Temp, data=airquality)
+#scatterplot + geom_abline(aes(intercept=intercept, slope=slope,
+ # colour=quantile), data=quantile.regressions)
+         
+```
+
+### REFERENCES
+
+ + **Quantile Regression Documentation** from tidyverse.org (https://ggplot2.tidyverse.org/reference/geom_quantile.html)
+ + Lecture code
+ + Ani Katchova, **Quantile Regression**, 2013 (https://www.youtube.com/watch?v=P9lMmEkXuBw)
+ + Ani Katchova, **Quantile Regression in R**, 2013 (https://www.youtube.com/watch?v=ucURUTVjBRo)
+ 
+
+ 
+**Question 2.** Reanalyze the **bodyfat** data from the **TH.data** package. 
+
+  a) Compare the regression tree approach from chapter 9 of the textbook to median regression and summarize the different findings.
+  b) Choose one dependent variable. For the relationship between this variable and DEXfat, create linear regression models for the 5%, 10%, 90%, and 95% quantiles. Plot DEXfat vs that dependent variable and plot the lines from the models on the graph. 
+  c) Provide a formal write up of the methodologies and of your results
+  
+
+### INTRODUCTION
+
+  *Bodyfat* data from *mboost* package consists of anthropometric measurements obtained from 71 German women along with their body composition measured by Dual Energy X-Ray Absorptiometry (DXA).Body fat is considered as a better predictor of metabiloc syndromes like diabetes mellitus and cardiovascular diseases. Body fat measured by DXA finds little applicability due to its high cost and methodological efforts needed.This data has 6 variables.*DEXfat* is the body fat measured by Dual Energy X-Ray Absortiometry,*age* is the age of women in years,*waistcirc* is the waist circumference,*hipcirc* is the hip circumference,elbowbreadth is the breadth of elbow and *kneebreadth* is the breadth of the knee.
+  
+### ANALYSIS AND RESULTS
+  
+  A multivariate analysis is done by fitting a Regression tree model.A decision tree is created by partitioning the observations by univariate splits in a recursive way.*rpart* function is used to grow the decision tree. All the independent variables were used to fit the model and DEXfat is used as dependent variable.A control is placed in the model where, a minimum of 10 observations is required to continue the split.
+  
+   \begin{verbatim}
+   bodyfat_rpart <-rpart(DEXfat ~ age+waistcirc+hipcirc+elbowbreadth+kneebreadth,
+   data=bodyfat,control=rpart.control(minsplit=10))
+   \end{verbatim}
+  
+  
+```{r Code-Chunk-11}
+data("bodyfat")
+bodyfat_rpart <-rpart(DEXfat ~ age+waistcirc+hipcirc+elbowbreadth+kneebreadth,data=bodyfat,
+                      control=rpart.control(minsplit=10))
+#print(bodyfat_rpart)
+#summary(bodyfat_rpart)$variable.importance
+```
+
+
+  Based on the variable importance the tree is split at several nodes to the leaf nodes.From the plot it is clear that the Bodyfat data is split into 13 leaf nodes, with a total of 6 splits.If a condition is satisfied the observations are branched to the left and those do not satisfy branch towards right.The higher values of the Waist circumference, Hip circumference and knee breadth corresponds to the higher DEXfat. Pruning of the tree can be performed based the cross validation error(Xerror) from the CP table of the model summary. In case of the Bodyfat data the best tree has four splits.
+  
+  
+```{r Code-Chunk-12,fig.width = 9}
+data.frame("Variable Importance"= bodyfat_rpart$variable.importance)
+plot(as.party(bodyfat_rpart),tp_args=list(id=FALSE))
+data.frame(bodyfat_rpart$cptable)
+```
+
+#### Dendrogram of the Bodyfat Regression Tree
+
+```{r Code-Chunk-13, fig.height=6,fig.align='center'}
+#print(bodyfat_rpart$cptable)
+#opt <- which.min(bodyfat_rpart$cptable[,"xerror"])
+#cp <- bodyfat_rpart$cptable[opt,"CP"]
+#bodyfat_prune <- prune(bodyfat_rpart,cp=cp)
+#plot(as.party(bodyfat_prune),tp_args=list(id=FALSE))
+
+plot(bodyfat_rpart)
+text(bodyfat_rpart)
+```
+
+   A Conditional inference tree can be computed using ctree function which is based on minimum Standard Error at each node. This is more advantageous as we do not need to prune the initial large trees since the tree is spliit based on a p-value(stopping criterion).
+
+   \begin{verbatim}
+   bodyfat_ctree <- ctree (DEXfat ~age+waistcirc+hipcirc+elbowbreadth+kneebreadth,data=bodyfat )
+   \end{verbatim}
+  
+```{r Code-Chunk-14}
+bodyfat_ctree <- ctree (DEXfat ~age+waistcirc+hipcirc+elbowbreadth+kneebreadth,data=bodyfat )
+plot(bodyfat_ctree)
+```
+
+  A median regression is performed with DEXfat as dependent variable and all independent variables. Quantile regression methodology is a non parametric method which is used to understand the relationship between the variables outside the mean. A median regression is obtained at 50% Quantile where observations are divided into two equal groups.The Coefficients show that waist circumference (0.28), Hip circumference (0.51) and knee breadth (0.76)are more significant compared to other variables.At 50th percentile, With increase in a unit of hip circumference there is 0.51 units increase in Dexfat and With increase in a unit of knee breadth there is 0.76 units increase in Dexfat.
+  
+  \begin{verbatim}
+   Tree <- DEXfat ~ age+waistcirc+hipcirc+elbowbreadth+kneebreadth 
+   Tree.qr.50 <-rq(Tree ,data=bodyfat,tau = 0.5)
+   \end{verbatim}
+  
+
+```{r Code-Chunk-15}
+Tree <- DEXfat ~ age+waistcirc+hipcirc+elbowbreadth+kneebreadth 
+Tree.qr.50 <-rq(Tree ,data=bodyfat,tau = 0.5)
+#summary(Tree.qr.50)
+data.frame('Median Quantile'=Tree.qr.50$coef)
+
+```
+
+
+  Linear regression lines are fit at different quantiles (5%,10%,90% and 95%) and the coefficients are compared to check if the there is any significant difference at these levels. From the Coefficients it is clear that as the we go from 5th Quantile to 95th Quantile the significance of both hip circumference and knee breath increases indicating heteroscedasticity in the data.
+  
+  \begin{verbatim}
+   Tree.qr.5 <-rq(Tree ,data=bodyfat,tau = 0.05)
+   Tree.qr.10 <-rq(Tree ,data=bodyfat,tau = 0.1)
+   Tree.qr.90 <-rq(Tree ,data=bodyfat,tau = 0.9)
+   Tree.qr.95 <-rq(Tree ,data=bodyfat,tau = 0.95)
+   \end{verbatim}
+    
+    
+```{r Code-Chunk-16}
+Tree.qr.5 <-rq(Tree ,data=bodyfat,tau = 0.05)
+#summary(Tree.qr.10)
+Tree.qr.10 <-rq(Tree ,data=bodyfat,tau = 0.1)
+#summary(Tree.qr.10)
+Tree.qr.90 <-rq(Tree ,data=bodyfat,tau = 0.9)
+#summary(Tree.qr.90)
+Tree.qr.95 <-rq(Tree ,data=bodyfat,tau = 0.95)
+#summary(Tree.qr.95)
+data.frame('5th Quantile'=Tree.qr.5$coef,'10th Quantile'=Tree.qr.10$coef,'90th Quantile'=Tree.qr.90$coef,
+           '95th Quantile'=Tree.qr.95$coef)
+```
+
+  Analysis of variance is performed to verify if there is a significant difference in the models built at different quantiles. A p-value of 0.02316 indicate that the null hypothesis is rejected and the models are significantly different at 95% confidence interval, confirming the heteroscedasticity in the data.
+  
+  
+```{r Code-Chunk-17}
+anova(Tree.qr.5,Tree.qr.10,Tree.qr.90,Tree.qr.95 )
+
+```
+
+  The plots show the relationship between the variables and the DEXfat at different Quantiles compared to the linear regression line which is at the center of each plot.For the variables, age and elbow width the Quantile regression line falls within the confidence intervel of the linear regression line indicating no significant difference in the observations between quantiles. However, for the variables waist circumference,hip circumference and knee width the quantile regression line is not parallel and are partly outside the confidence intervel of the linear regression line indicating a difference. 
+  
+```{r Code-Chunk-18,fig.height=8,fig.width=10}
+par(mfrow=c(1,3))
+tree1 <-rq(Tree,tau=c(0.05,0.1,0.9,0.95),data=bodyfat)
+tree2 <-summary(tree1)
+#tree2
+plot(tree2)
+```
+
+
+  A Quantile regression line is fit foe each of the Quantiles, 5%,10%,90% and 95% with Dexfat as dependent variable and hipcirc as independent variable. Hip circumference is choosed to fit the model as it is clear from the initial analysis that this variable is significantly different at different quantiles compared to linear regression line.
+  
+  \begin{verbatim}
+   BF <- DEXfat ~ hipcirc
+   BF.5<-rq(BF ,data=bodyfat,tau = 0.05)
+   BF.10<-rq(BF ,data=bodyfat,tau = 0.1)
+   BF.90<-rq(BF ,data=bodyfat,tau = 0.90)
+   BF.95<-rq(BF ,data=bodyfat,tau = 0.95)
+   \end{verbatim}
+   
+   On comparision, there is difference is the effect of hip circumference on DEXfat at different quantiles. The coefficients are listed in the table. From 5th percentile to 95th percentile there is an increase in significance.However, there is no big difference between 5th and 10th percentile ,90th and 95th percentile. At 5th percentile with a unit increase in hip circumference there is 0.87 units increase in DEXfat.At 10th percentile with a unit increase in hip circumference there is 0.84 units increase in DEXfat.At 90th percentile with a unit increase in hip circumference there is 01.16 units increase in DEXfat.At 95th percentile with a unit increase in hip circumference there is 1.11 units increase in DEXfat.
+  
+```{r Code-Chunk-19}
+BF <- DEXfat ~ hipcirc
+BF.5<-rq(BF ,data=bodyfat,tau = 0.05)
+#summary(BF.5)
+BF.10<-rq(BF ,data=bodyfat,tau = 0.1)
+#summary(BF.10)
+BF.90<-rq(BF ,data=bodyfat,tau = 0.90)
+#summary(BF.90)
+BF.95<-rq(BF ,data=bodyfat,tau = 0.95)
+#summary(BF.95)
+data.frame("5th Quantile" = BF.5$coef,"10th Quantile" = BF.10$coef,"90th Quantile" = BF.90$coef,"95th Quantile" = BF.95$coef)
+
+```
+
+ 
+  Analysis of variance is performed to verify if there is a significant difference in the models built at different quantiles. A p-value of 0.01169 indicate that the null hypothesis is rejected and the models are significantly different at 95% confidence interval, confirming the heteroscedasticity in the data.
+  
+
+```{r Code-Chunk-20}
+anova(BF.5,BF.10,BF.90,BF.95)
+```
+
+   The plots show the relationship between the hip circumference and the DEXfat at different Quantiles compared to the linear regression line which is at the center of each plot.The quantile regression line is not parallel and are mostly outside the confidence intervel of the linear regression line indicating a significant difference. At the lower Quantiles the observations are lower than the mean and towards the higher Quantiles the they are higher than mean.
+   
+   
+```{r Code-Chunk-21 }
+BF.overall<-rq(BF ,data=bodyfat,tau = c(0.05,0.1,0.90,0.95))
+BF.overall.sum <-summary(BF.overall)
+plot(BF.overall.sum)
+```
+
+  The linear regression lines from all the quantiles are plotted over the scatter plot of the Bodyfat data.From the plot it is clear that these lines are not parallel and have a different slope indicating heteroscedasticity of data. More information can be obtained from the Quantile regression than the linear regression. A similar plot is created using ggplot2.
+  
+  
+```{r Code-Chunk-22}
+plot(DEXfat~hipcirc,data=bodyfat,xlab="Hip Circumference",main="Relationship between Hip Circumference & DEXfat",ylab="DEXfat")
+abline(lm(DEXfat~hipcirc,data=bodyfat),lty=5,col="black")
+abline(BF.5,lty=6,col="blue")
+abline(BF.10,lty=2,col="green")
+abline(BF.90,lty=1,col="red")
+abline(BF.95,lty=4,col="brown")
+legend("topleft",legend=c("Linear Reg","5% Quantile","10% Quantile","90% Quantile","95% Quantile"),lty=c(5,6,2,1,4),col=c("black","blue","green","red","brown"))
+
+color <-c('5%' = "blue", '10%' = "green", '90%' = "red",'95%'="brown")
+quantiles <-c(0.05,0.1,0.9,0.95)
+ggplot(bodyfat,aes(x=hipcirc,y=DEXfat))+geom_point()+stat_quantile(geom="quantile",quantiles=0.05,aes(colour="5%"),method="rq")+
+  stat_quantile(geom="quantile",quantiles=0.1,aes(colour="10%"),method="rq")+
+  stat_quantile(geom="quantile",quantiles=0.9,aes(colour="90%"),method="rq")+
+  stat_quantile(geom="quantile",quantiles=0.95,aes(colour="95%"),method="rq")+
+  geom_smooth(method='lm',aes(colour="Linear Reg"))+
+  ggtitle("Relationship between Hip Circumference & DEXfat:ggplot") + xlab("Hip Circumference") + ylab("DEXfat")+
+  scale_color_manual(name="Quantiles", values = c('5%' = "blue", '10%' = "green", '90%' = "red",'95%'="brown",'Linear Reg'="Black"))
+```
+
+### CONCLUSION
+
+  Bodyfat data from the TH.data package is used to analyze the effect of anthropometric measurements on the DEXfat. A decision tree is built using Recursive Partitioning methodology. Waist circumference, Hip circumference and Knee breadth variables are found to have more significance on the DEXfat.A median regression line (at 50th percentile) is fit. The Coefficients indicate that the Waist circumference, Hip Circumference and Knee breadth variables are more significant at 50th percentile as well. With a unit increase of waist circumference,hip circumference and knee breadth there is an increase of 0.28,0.51 and 0.76 units of DEXfat respectively. Relationship between the variables and the DEXfat at 5%,10%,90% and 95% Quantiles is analysed. A difference is observed at different quantiles compared to the linear regression line. Similarly,a Quantile regression model is fit with DEXfat as dependent variable and hip circumference as independent variable at 5%,10%,90% and 95% quantiles. From the coefficients, it is clear that hip circumference has different effect at different quantiles. From 5th percentile to 95th percentile there is an increase in significance.However, there is no big difference between 5th and 10th percentile & 90th and 95th percentile.A plot is created showing the relationship between Hip circumference and DEXfat.The Quantile regression lines are not parallel to the linear regresion line indicating that there is a difference in slope and more information can be obtained from these quantiles.
+  
+
+### REFERENCES
+
+ + Lecture Code
+ + **Quantile Regression Documentation** from tidyverse.org (https://ggplot2.tidyverse.org/reference/geom_quantile.html)
+ + Clay Ford,*Getting Started with Quantile Regression*, September 20,2015 (https://data.library.virginia.edu/getting-started-with-quantile-regression/)
+ + Lecture by Scott Burk,*R50 Quantile Regresiion in R. Robust,nonparametric,regression*, April 28,2019 (https://www.youtube.com/watch?v=NjfJfpC1PUA)
