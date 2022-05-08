@@ -1,0 +1,312 @@
+---
+title: "Homework 6"
+author: "Snigdha Peddi"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig.height=10,fig.width=9,cache = F)
+```
+
+```{r Libraries}
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("mgcv")
+library(mgcv)
+#install.packages("mboost")
+library(mboost)
+#install.packages("GGally")
+library(GGally)
+#install.packages("wordcloud")
+library(wordcloud)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("tidyr")
+library(tidyr)
+#install.packages("mlbench")
+library(mlbench)
+#install.packages("partykit")
+library(partykit)
+#install.packages("mboost")
+library(mboost)
+#install.packages("rpart")
+library(rpart)
+#install.packages("TH.data")
+library(TH.data)
+
+```
+
+## References
+### (PLEASE CLICK ON THE REFERENCE TO BE DIRECTED TO THE WEBPAGE)
+
+Reference 1:Lecture Code(Chapter10Rcode.R), [Reference 2](https://www.youtube.com/watch?v=uoT3j80qP1U), [Reference 3](https://www.youtube.com/watch?v=_2T8s_o2xVI), [Reference 4](https://stats.stackexchange.com/questions/190172/how-i-can-interpret-gam-results), [Reference 5](https://m-clark.github.io/docs/GAMS.pdf), [Reference 6](https://www.youtube.com/watch?v=sgw4cu8hrZM&t=14s),[Reference 7](https://cran.r-project.org/web/packages/mboost/vignettes/mboost_illustrations.pdf)
+
+## Exercises
+
+**Question 1.** (Ex. 10.1 pg 207 in HSAUR, modified for clarity) Consider the **bodyfat** data from the **TH.data** package introduced in Chapter 9.  
+
+**a)** Use graphical methods to suggest which variables should in the model to predict body fat. (Hint: Are there correlated predictors?) Make sure to explain your reasoning.
+
+**Answer 1.a:** Both the plots clearly show the relationship between DEXfat and other variables. A high correlation of greater than 0.8 between DEXfat and variables waistcirc,hipcirc,knessbredth,sum of three anthropometric measurements indicates that these variables are highly correlated and should be used in the model to predict the body fat.
+
+
+```{r Code Chunk-1}
+#Reading the data
+data(bodyfat)
+bodyfat<-bodyfat
+#Investigating the variables of the bodyfat data
+#head(bodyfat)
+# Using pairs plot to check the relation between bodyfat variables
+pairs(bodyfat, main="Pairs Plot for Bodyfat Data")
+# Using ggpairs to check the correlation between variables
+#options(repr.plot.width = 8, repr.plot.height = 8)
+
+ggpairs(bodyfat,title="Correlation Plot of Bodyfat Data")
+```
+
+
+**b)** For feasibility of the class, fit a generalized additive model assuming normal errors using the following code. 
+
+  \begin{verbatim}
+    bodyfat_gam <- gam(DEXfat ~ s(age) + s(waistcirc) + s(hipcirc) + 
+    s(elbowbreadth) + s(kneebreadth)+ s(anthro3a) +
+    s(anthro3c), data = bodyfat)
+    \end{verbatim}
+
+- Assess the **summary()** and **plot()** of the model (don't need GGPLOT for a plot of the model). Are all covariates informative? Should all covariates be smoothed or should some be included as a linear effect? 
+
+
+**Answer 1.b:** A Generalized Linear regression model is fit.
+
+```{r Code Chunk-2}
+set.seed(seed = 929270)
+# Buiding Generalized linear model
+bodyfat_gam <-gam(DEXfat ~ s(age) + s(waistcirc) + s(hipcirc) + 
+    s(elbowbreadth) + s(kneebreadth)+ s(anthro3a) +
+    s(anthro3c), data = bodyfat)
+
+```
+  
+  The Summary of the model shows that the variables age,elbowbreadth and anthro3c are not significant at 95% confidence interval.The plots show that age, waistcirc, elbowbreadth and anthro3a are linearly related and also  is clear from the summary that these variables have a degree of freedom 1.
+  The model with a linear fit of waistcirc shows that the variable is still significant at 95% confidence interval.
+  Another model built with linear fit of variables age,elbowbreadth and anthro3c shows that anthro3c is significant at 95% confidence interval.
+  The final model with variables waistcirc and anthro3c fit linearly shows that these variables are significant.
+  
+  Comparing all the models variable waistcirc can be included as a linear effect. This can be confirmed by comparing the AIC of the 4 models.The initial model and model with linearly fit waistcirc has similar and  lower AIC and are the best models among the 4 models fit.
+```{r Code Chunk-3}
+# Summary of model
+summary(bodyfat_gam)
+```
+
+
+```{r Code Chunk-4}
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam)
+
+```
+
+
+```{r Code Chunk-5}
+set.seed(seed = 929270)
+# Building model with waistcirc as linear variable
+bodyfat_gam2<-gam(DEXfat ~s(age)+ waistcirc + s(hipcirc) + 
+    s(elbowbreadth)+ s(kneebreadth)+ s(anthro3a) +
+   s(anthro3c), data = bodyfat)
+# Summary of model
+summary(bodyfat_gam2)
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam2)
+```
+```{r Code Chunk-6}
+set.seed(seed = 929270)
+# Building GAM model with linear variables
+bodyfat_gam3<-gam(DEXfat ~ age + s(waistcirc) + s(hipcirc) + 
+    elbowbreadth + s(kneebreadth)+ s(anthro3a) +
+    anthro3c, data = bodyfat)
+# Summary of model
+summary(bodyfat_gam3)
+#Pot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam3)
+
+```
+```{r}
+set.seed(seed = 929270)
+# Building model with waistcirc and anthro3c as linear variables
+bodyfat_gam4<-gam(DEXfat ~s(age)+ waistcirc + s(hipcirc) + 
+    s(elbowbreadth)+ s(kneebreadth)+ s(anthro3a) +
+   anthro3c, data = bodyfat)
+# Summary of model
+summary(bodyfat_gam4)
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam4)
+```
+
+```{r Code Chunk-7}
+#Comparison of AIC of models
+AIC_mod <- data.frame(bodyfat_gam$aic,bodyfat_gam2$aic,bodyfat_gam3$aic,bodyfat_gam4$aic)
+AIC_mod
+```
+
+- Report GCV, AIC, and total model degrees of freedom. Discuss how certain you are that you have a reasonable summary of the actual model flexibility.
+        
+The total degrees of freedom is equal to number of terms/variables in the model.However, flexible regression models have nonlinear parameters that require more than one df. For this model the edf(effective degrees of freedom) is 21 indicating that few terms are smoothed ,increasing the number of parameters.The GCV score or the generalized cross validation score is an estimate of mean square error of the LOOCV process. A moderate GCV score along with high AIC score indicates that the model performance can be improved by variable selection.
+
+
+```{r Code Chunk-8}
+
+#AIC of model
+AIC.mod <-(bodyfat_gam$aic)
+cat("AIC of model 1:",AIC.mod,"\n\n")
+
+#Generelized cross validation score of model
+GCV.mod <-(bodyfat_gam$gcv.ubre)
+cat("GCV of model 1:",GCV.mod,"\n\n")
+
+#degrees of freedom of model
+df.mod <-sum(summary(bodyfat_gam)$edf)
+cat("Degrees of Freedom of model 1:",df.mod,"\n\n")
+
+```
+
+- Produce a diagnostic plot using **gam.check()** function. Are any concerns raised by the diagnostic plot?
+        
+The Quantile plot show that few points do not fall within the confidence interval.The residual vs.linear predictor plot shows that the spread widening out which is of concern.The histogram looks guassian and right skewed.The Response vs.Fitted values plot have linear fit indicating the model is performing good.The model can be improved by variable selection or using high order covariates.
+
+```{r Code Chunk-9}
+#gam.check of the model
+gam.check(bodyfat_gam,rep=500)
+```
+
+
+    
+**c)** Fit the model below, note that some insignificant variables have been removed and some other variables are no longer smoothed. Report the summary, plot, GCV and AIC.
+      
+\begin{verbatim}
+  bodyfat_gam2 <- gam(DEXfat~ waistcirc + s(hipcirc) + 
+  s(kneebreadth)+ anthro3a +
+  s(anthro3c), data = bodyfat)
+  \end{verbatim}
+  
+```{r Code Chunk-10}
+# Building model 
+bodyfat_gam5<-gam(DEXfat~ waistcirc + s(hipcirc) + 
+  s(kneebreadth)+ anthro3a +
+  s(anthro3c), data = bodyfat)
+# Summary of model
+summary(bodyfat_gam5)
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam5)
+
+```
+```{r Code Chunk-11}
+#AIC of plot
+AIC.mod5 <-(bodyfat_gam5$aic)
+cat("AIC of model 5:",AIC.mod5,"\n\n")
+
+#GCV of plot
+GCV.mod5 <-(bodyfat_gam5$gcv.ubre)
+cat("GCV of model 5:",GCV.mod5,"\n\n")
+```
+
+**d)** Again fit an additive model to the body fat data, but this time for a log-transformed response. Compare the three models, which one is more appropriate? (Hint: use AIC, GCV, residual plots, etc. to compare models).
+
+**Answer 1.d:** An additive model is fit with the log-transformed DEXfat variable.By comparing the 3 models, the lower AIC and GCV scores clearly indicate that model with log transformed response variable and linearly fit waistecirc and anthro3a variables(Model 3) has better performance.
+
+```{r Code Chunk-12}
+# Building model with waistcirc and anthro3c as linear variables
+bodyfat_gam6<-gam(log(DEXfat)~ waistcirc + s(hipcirc) + 
+  s(kneebreadth)+ anthro3a +
+  s(anthro3c), data = bodyfat)
+# Summary of model
+summary(bodyfat_gam6)
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_gam6)
+
+#AIC of plot
+AIC.mod6 <-(bodyfat_gam6$aic)
+cat("\n\n","AIC of model 6:",AIC.mod6,"\n\n")
+
+#GCV of plot
+GCV.mod6 <-(bodyfat_gam6$gcv.ubre)
+cat("GCV of model 6:",GCV.mod6,"\n\n")
+```
+```{r Code Chunk-13}
+AIC <-data.frame(AIC.mod6,AIC.mod5,AIC.mod)
+AIC
+GCV<-data.frame(GCV.mod6,GCV.mod5,GCV.mod)
+GCV
+```
+    
+    
+**e)** Run the code below to fit a generalised additive model that underwent AIC-based variable selection (fitted using the **gamboost()** function). What variable(s) was/were removed by using AIC? 
+    
+ \begin{verbatim}
+  bodyfat_boost <- gamboost(DEXfat~., data = bodyfat)
+  bodyfat_aic <- AIC(bodyfat_boost)
+  bf_gam <- bodyfat_boost[mstop(bodyfat_aic)]
+  \end{verbatim}
+
+**Answer 1.e:** The AIC suggests that the bossting algorithm should be stopped after 51 iterations.The Age variable is removed by the AIC method and the resulting AIC is very low indicating this model is performing better than the previous models.The plots of the models shows that most of the variables are smoothed enough to form have a linear relationship with the DEXfat.Kneebresdth slowly increased and shows a linear relation. Only the elbowbreadth has non linear relation decreasing to the most extent and slowly increasing thereafter.
+
+```{r Code Chunk-14}
+# Building model 
+ bodyfat_boost <- gamboost(DEXfat~., data = bodyfat)
+bodyfat_aic <- AIC(bodyfat_boost)
+  bf_gam <- bodyfat_boost[mstop(bodyfat_aic)]
+
+# Summary of model
+summary(bodyfat_boost)
+#Plot of the model
+par(mfrow=c(2,4))
+plot(bodyfat_boost)
+
+#AIC of plot
+bodyfat_aic <- AIC(bodyfat_boost)
+cat("\n\n","AIC of model:",bodyfat_aic,"\n\n")
+
+
+```
+
+
+**Question 2.** (Ex. 10.3 pg 208 in HSAUR, modified for clarity) Fit an additive model to the **glaucomaM** data from the **TH.data** library with *Class* as the response variable. Read the description of the dataset and the goals of the experiment. Which covariates should be in the model and what is their influence on the probability of suffering from glaucoma? (Hint: Since there are many covariates, use **gamboost()** to fit the GAM.) Make sure to provide a written summary of the model you chose and your corresponding analysis.
+
+**Answer 2:** The goal of the experiment to find a way to decide whether an eye is affected by glaucoma or not. As suggested, **gamboost()** is used to fit the Generalized Additive model as there are 63 covariates.AIC of the model suggests that the boosting algorithm is to be stopped at 100 iterations and has 62 base learners.The partial contribution of 18 important covariates out of 63 variables are shown in the plots.The plots shows that out of 18 covariates that are not linearly related, lower values of "volume above reference superior-vars" and "volume above reference inferior-vari" and higher values of other variables indicate presence of Glaucoma.
+
+
+```{r Code Chunk-15}
+data("GlaucomaM")
+
+#Build model using gamboost
+Glaucoma.mod <- gamboost(Class~., data = GlaucomaM,family=Binomial())
+#Summary of the model
+summary(Glaucoma.mod)
+
+
+#Plot of the model
+par(mfrow=c(2,5))
+plot(Glaucoma.mod)
+
+```
+
+### AIC of the model:
+```{r Code Chunk-16}
+
+#AIC of model
+Glaucoma_AIC <- AIC(Glaucoma.mod,"classical")
+Glaucoma_AIC
+
+```
+```{r}
+#coefficients(Glaucoma.mod)
+```
+
+
