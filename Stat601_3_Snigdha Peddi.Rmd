@@ -1,0 +1,475 @@
+---
+title: "Homework 3"
+author: "Snigdha Peddi"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+
+```{r libraries}
+
+# libraries used for Homework 1
+
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("ISLR")
+library(ISLR)
+#install.packages("caret")
+library(caret)
+#install.packages("e1071")
+library(e1071)
+#install.packages("boot")
+library(boot)
+
+```
+
+
+## Exercises
+
+Question 1. (Ex. 7.3 pg 147 in HSAUR, modified for clarity) Use the \textbf{bladdercancer} data from the \textbf{HSAUR3} library to answer the following questions.
+
+a) Construct graphical and/or numerical summaries to identify a relationship between tumor size and the number of recurrent tumors. Discuss your discovery. (For example, a mosaic plot or contingency table is a good starting point. Otherwise,  there are other ways to explore this data.)
+
+Answer 1.a:The Contingency table shows that the frequency of tumors of size <=3cm is more than the >3cm. Both the Barplot and Mosaic plot shows that the tumors of size <=3cm were more recurrent than size >3cm for 1 and 2 tumors and equal for 3 and 4 tumors. And the frequency of 1 0r 2 tumors is more than 3 or 4 tumors.There is no significant pattern describing the relation between the number of tumors and the size of the tumor.
+```{r Question 1a}
+# Renaming the Bladdercancer dataset
+Cancer <- bladdercancer
+
+# Creating a contingency table
+cat("Contingency Table:")
+table1 <-table(Cancer$tumorsize,Cancer$number)
+table1
+
+# Barplot showing the number cases of recurrent tumors in relation to tumorsize
+barplot(table1,beside=T,legend.text=c("Tumorsize: <=3cm","Tumorsize: >3cm"),main="Relation between Tumorsize and No. of Recurrent Tumors",xlab="No. of Recurrent Tumors",ylab="Count",las=1,col=c(2,4))
+
+#Barplot using ggplot
+ggplot(Cancer, aes(number, fill = tumorsize)) +
+  geom_histogram(binwidth=.5, position="dodge") +
+  labs(title='Relation between Tumorsize and No. of Recurrent Tumors:ggplot',
+       x='No. of Recurrent Tumors',
+       y='Count')
+
+# Mosaic plot showing the number cases of recurrent tumors in relation to tumorsize
+mosaicplot(xtabs(~ number + tumorsize, data = Cancer),table1.text=c("Tumorsize: <=3cm","Tumorsize: >3cm"),main="Relation between Tumorsize and No. of Recurrent Tumors",ylab="Tumorsize",xlab="No. of Recurrent Tumors",las=1,shade=T)
+
+
+```
+
+b) Assume a Poisson model describes the relationship found in part a). Build a Poisson regression that estimates the effect of tumor size on the number of recurrent tumors.  Does the result of this analysis support your discovery in part a)?
+
+Answer 1.b: A Poisson regression model is fit.
+
+A poisson regression model between number of recurrent tumors and the tumor size indicate that the variable tubmor size is not significant with a high P value. Residual error is lower than the degrees of freedom indicating an under-dispersion. To correct the standard error a quasipoisson regression is fit. 
+
+The resultant model has a significant intercept but is still not significant with a high P value indicating that the tumor size is not correlated with the number of recurrent tumors.
+```{r  Question 1.b}
+# Building Poisson regresssion model to show relation between effect of tumorsize on number of recurrent tumors
+model1 <- glm(number ~ tumorsize,data=bladdercancer,family=poisson())
+summary(model1)
+
+model4 <- glm(number ~ tumorsize,data=bladdercancer,family=quasipoisson())
+summary(model4)
+```
+Another model is built with both the features time and tumor size.
+
+The P value indicate that both the variables are not significant at 95% confidence interval. Also, the AIC is higher than the previous model with just the Tumor size variable indicating that time variable is not improving the model performance.
+```{r}
+
+# Model with all the variables
+
+model2<- glm(number ~ time + tumorsize,data=bladdercancer,family=poisson())
+summary(model2)
+
+```
+One more model is fit  with both the features time and tumor size and a interaction term.
+
+The P value of the higher order term(interaction term) indicate that there is no significant effect of the interaction term. Also, the AIC is higher than both the previous models indicating that the interaction term is not improving the model performance.
+```{r}
+# Model with interaction term
+
+model3 <- glm(number ~time + tumorsize + tumorsize*time,data=bladdercancer,family=poisson(link=log))
+summary(model3)
+```
+The Chi square test indicates that the models with all the variable and with interaction term are not significant.
+```{r}
+anova(model3,model2,model1,test='Chisq')
+```
+**Final Answer:** The P values of all the models indicate that none of the variables nor the interaction term is significant and we can reject the alternate hypothesis and there is no correlation between the tumor size and the number of recurrences.The contingency table and distribution plots also indicate that there is no correlation between these two variables. 
+
+    
+2. Let $y$ denote the number of new AIDS cases in Belgium between the years 1981-1993. Let $t$ denote time.
+\begin{verbatim}
+y = c(12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240)
+t = c(1:13)
+\end{verbatim}
+
+a) Plot the progression of AIDS cases over time. Describe the general nature of the progress of the disease.
+
+Answer 2.a: A scatterplot between Number of AIDS cases over time clearly shows that there is a relation between them. As the time ncreases the number of cases increase until year 1991 and then starts declining.
+
+```{r Question 2.a}
+y = c(12, 14, 33, 50, 67, 74, 123, 141, 165, 204, 253, 246, 240)
+t = c(1:13)
+
+# binding the variables into a dataset
+AIDS.Belgium <- data.frame(cbind(y,t))
+
+
+# Plotting to investigate the relationship between y and t in base R
+
+plot(y~t, data=AIDS.Belgium, main="Progression of AIDS in Belgium",xlab="Time in Years (1981-1993)",ylab="Number of AIDS Cases")
+
+# Plotting to investigate the relationship between y and t using ggplot
+
+ggplot(AIDS.Belgium,aes(x=t,y=y)) +
+  geom_point() + 
+  labs(title='Progression of AIDS in Belgium:ggplot',
+       x = 'Time in Years (1981-1993)',
+       y ='Number of AIDS Cases')
+
+```
+    
+b) Fit a Poisson regression model $log(\mu_i)=\beta_0+\beta_1t_i$. How well do the model parameters describe disease progression? Use a residuals (deviance) vs Fitted plot to determine how well the model fits the data.
+
+Answer 2.b: A poisson regression model is fit.
+
+```{r Question 2.b}
+# Fitting Poissons regression model
+model5 <- glm(y ~ t, data=AIDS.Belgium,family=poisson())
+```
+
+After reviewing the model parameters it is clear that the variables are significantly correlated at 95% confidence interval. However,a lower std.error and higher residual deviance than the degrees of freedom indicates an over dispersion (a variance that is higher than mean).
+```{r}
+summary(model5)
+```
+The residual plot further confirms that the mean and variance are not the same and the data is over dispersed.It is clear that there is significant variance from the fitted line and there are outliers. 
+```{r}
+#call the plot funtion on the model selecting only the residual vs fitted plot
+plot(model5,which=1,sub.caption= "No. of AIDS Cases vs Time")
+```
+
+c) Now add a quadratic term in time (\textit{ i.e., $log(\mu_i)=\beta_0+\beta_1t_i +\beta_2t_i^2$} ) and fit the model. Do the parameters describe the progression of the disease? Does this improve the model fit? Compare the residual plot to part b). 
+
+```{r Question 2.c}
+# Fitting a Quadratic model
+
+model6 <- glm(y ~ t + poly(t,degree=2),data=AIDS.Belgium,family=poisson()) 
+
+```
+Answer 2.c: A poisson regression model with a quadratic term is fit.
+
+With addition of a second order polynomial to the model the difference between models residual deviance and degrees of freedom is relatively small indicating no over dispersion. Also, the residual deviance is lower indicating less variance with improved standard error.The lower AIC values of 96.924(compared to 166.37 of previous model) indicate that addition of the polynomial improved the model performance.
+```{r}
+summary(model6)
+```
+The residual plot further confirms the better performance of the model and lower residual deviance.
+```{r}
+plot(model6,which=1)
+```
+
+d) Compare the two models using AIC. Did the second model improve upon the first? Does this confirm your position from part c)? 
+
+Answer 2.d: The second models AIC is lower than the first model(96.92358 and 166.3698 respectively) indicating that the second model explains the data better and it confirms my assumptions that adding a second order polynomial to the linear model reduces the over dispersion and improves model performance.
+```{r}
+cat("Residual deviance of linear model:",model5$aic,"\n")
+cat("Residual deviance of Quadratic model:",model6$aic)
+
+```
+
+e)  Compare the two models using a $\chi^2$ test (\texttt{anova} function will do this). Did the second model improve upon the first? Does this confirm your position from part c) and/or d)? 
+
+Answer 2.e: The high deviance and low P values clearly show that adding a second degree polynomial in the second model improved the performance.The p value is statistical significant in the second model and hence I reject the null hypothesis that both models are same. This confirms my previous assumptions that quadratic model is better over linear model.
+```{r}
+# Chi Square test using anova
+anova(model5,model6,test='Chisq')
+
+```
+
+3. (Adapted from ISLR) Load the \textbf{Default} dataset from \textbf{ISLR} library. The dataset contains four features on 10,000 customers. We want to predict which customers will default on their credit card debt based on the observed features. You had developed a logistic regression model on HW \#2. Now consider the following two models 
+    \begin{itemize}
+    \item[Model 1:] Default = Student + balance 
+    \item[Model 2:] Default = Balance 
+    \end{itemize}
+    
+Answer 3: Two models were fit. One with default vs student+balance and other with default vs balance.
+
+```{r Question 3}
+#changing dependent variable default to binary format
+Default <- Default %>%
+  mutate(default=ifelse(default=='Yes',1,0)) 
+
+
+# Fit the models
+model7 <- glm(default ~ student + balance,data=Default,family=binomial())
+summary(model7)
+model8 <- glm(default ~ balance,data=Default,family=binomial())
+summary(model8)
+```
+
+Compare the models using the following four model selection criteria.
+
+a) AIC
+Model 1 had lower AIC than Model 2.Also, MSE of Model 1 is slightly lower than Model 2. Both the terms in Model 1 are significant indicating that the customer being a student or not a student has correlation with default status.
+
+```{r Question 3.a}
+
+cat("AIC of model with Student and balance variables:",model7$aic,"\n\n")
+
+cat("AIC of model with only balance variable:",model8$aic,"\n\n")
+
+cat("MSE of model with Student and balance variables:",mean((predict(model7,Default,type='response')-Default$default)^2),"\n\n")
+
+cat("MSE of model with only balance variable:",mean((predict(model8,Default,type='response')-Default$default)^2))
+
+```
+```{r}
+# Calculating Error Rate for both the models
+true <- Default$default
+truevalues <- factor(ifelse(true >= .5, "Yes", "No"))
+
+pred_1<- factor(ifelse(model7$fitted>=0.50,"Yes","No"))
+pred_2<- factor(ifelse(model8$fitted>=0.50,"Yes","No"))
+
+rate_1 <- table(pred_1,True=truevalues)
+rate_2 <- table(pred_2,True=truevalues)
+
+error_rate_1 <- 1-(rate_1[1,1]+rate_1[2,2])/sum(rate_1)
+error_rate_2 <- 1-(rate_2[1,1]+rate_2[2,2])/sum(rate_2)
+
+cat("Error Rate in % for Model with both variables(Student and balance): ", error_rate_1*100,"\n\n")
+cat("Error Rate in % for Model with only balance variable: ", error_rate_2*100)
+```
+
+b) Training / Validation set approach. Be aware that we have few people who defaulted in the data. 
+
+As only few people defaulted in this data, I have first separated my data based on levels in default.Then,did a 70:30(Train:Test) split for the datasets and did a full join to get my Train and Test data.
+The two models were fit. There is a very little difference in the model performance with the Student variable in the Model1. The AIC and MSE of Model 1(Student+balance) are slightly better than Model 2(balance).
+The observed difference between the Training/Validation approach and using full data is that The AIC of both models are less when training/validation approach is used.
+
+
+```{r Question 3.b}
+# separating data by default levels
+default.yes <- Default %>% filter(default == 1)
+default.no <- Default %>% filter(default == 0)
+
+#Train-Test split, where default=Yes
+smp_size1 <- floor(0.7 * nrow(default.yes))
+set.seed(42)
+train1_index <- sample(seq_len(nrow(default.yes)),size=smp_size1)
+train1.dat <- default.yes[train1_index,]
+test1.dat <- default.yes[-train1_index,]
+
+#Train-Test split, where default=No
+smp_size2 <- floor(0.7 * nrow(default.no))
+set.seed(42)
+train2_index <- sample(seq_len(nrow(default.no)),size=smp_size2)
+train2.dat <- default.no[train2_index,]
+test2.dat <- default.no[-train2_index,]
+
+# Joining the Training and Test Datasets
+Data.train<- full_join(train1.dat,train2.dat)
+Data.test <- full_join(test1.dat,test2.dat)
+
+
+train1.len <- length(Data.train$default[Data.train$default == 1])
+train0.len <- length(Data.train$default[Data.train$default == 0])
+validate1.len <- length(Data.test$default[Data.test$default == 1])
+validate0.len <- length(Data.test$default[Data.test$default == 0])
+
+#kable(Data.train %>% group_by(default) %>% dplyr::summarize(n=n(),'%'=round(n/(train1.len + train0.len)*100,2)),caption = 'Training Split')
+#kable(Data.test %>% group_by(default) %>% dplyr::summarize(n=n(),'%'=round(n/(validate1.len + validate0.len)*100,2)),caption = 'Validation Split') 
+```
+
+```{r}
+
+# Building the models with training data and calculating the MSE
+
+model9 <- glm(default ~ student + balance,data=Data.train,family=binomial())
+
+summary(model9)
+
+MSE1 <-mean((predict(model9,Data.test,type="response")-Data.test$default)^2)
+
+cat("MSE of model with Student and balance variables using Training /validation approach :",MSE1,"\n")
+
+model10 <- glm(default ~ balance,data=Data.train,family=binomial())
+
+summary(model10)
+
+MSE2 <-mean((predict(model10,Data.test,type="response")-Data.test$default)^2)
+
+cat("MSE of model with only balance variables using Training /validation approach :",MSE2,"\n")
+```
+```{r}
+# Calculating Error rate for both the models
+
+true_1 <- Data.train$default
+truevalues_1 <- factor(ifelse(true_1 >= .5, "Yes", "No"))
+
+pred_3<- factor(ifelse(model9$fitted>=0.50,"Yes","No"))
+pred_4<- factor(ifelse(model10$fitted>=0.50,"Yes","No"))
+
+rate_3 <- table(pred_3,True=truevalues_1)
+rate_4 <- table(pred_4,True=truevalues_1)
+
+error_rate_3 <- 1-(rate_3[1,1]+rate_3[2,2])/sum(rate_3)
+error_rate_4 <- 1-(rate_4[1,1]+rate_4[2,2])/sum(rate_4)
+
+cat("Error Rate in % for Model with both variables(Student and balance): ", round(error_rate_3*100,2),"\n\n")
+cat("Error Rate in % for Model with only balance variable: ", round(error_rate_4*100,2))
+```
+
+c) LOOCV
+
+The below models were used for Leave One Out Cross Validation,
+
+\begin{verbatim}
+model7 <- glm(default ~ student + balance,data=Default,family=binomial())
+
+model8 <- glm(default ~ balance,data=Default,family=binomial())
+\end{verbatim}
+
+The MSE of the Models show that the Model with variables Student and balance is better than the other model with LOOCV approach.
+
+```{r Question 3.c}
+
+costf<- function(r,pi=0)
+  mean(abs(r-pi)>0.5)
+
+LOOCV1<-cv.glm(Default,model7,costf)$delta[1]
+LOOCV2<-cv.glm(Default,model8,costf)$delta[1]
+cat("Error Rate in % of model with Student and balance variables using LOOCV approach :",round(LOOCV1*100,2),"\n\n")
+cat("Error Rate in % of model with only balance variables using LOOCV approach :",round(LOOCV2*100,2))
+
+```
+
+d) 10-fold cross-validation.
+
+The below models were used for Leave One Out Cross Validation,
+
+\begin{verbatim}
+model13 <- glm(default ~ student + balance,data=Default,family=binomial())
+
+model14 <- glm(default ~ balance,data=Default,family=binomial())
+\end{verbatim}
+
+The MSE of the Models show that the Model with variables Student and balance is better than the other model with 10-fold cross-validation approach.
+
+```{r Question 3.d}
+costf<- function(r,pi=0)
+  mean(abs(r-pi)>0.5)
+
+    model13<-glm(default ~ student + balance,data=Default,family=binomial())
+    Kfold1<-cv.glm(Default,model13,K=10,costf)$delta[1]
+   
+cat("Error Rate in % of model with Student and balance variables using Kfold approach :",round(Kfold1*100,2),"\n\n")
+   
+    model14<-glm(default ~balance,data=Default,family=binomial())
+    Kfold2<-cv.glm(Default,model14,K=10,costf)$delta[1]
+
+cat("Error Rate in % of model with only balance variables using Kfold approach :",round(Kfold2*100,2))
+```
+Report validation misclassification (error) rate for both models in each of the four methods (we recommend using a table to organize your results). Select your preferred method, justify your choice, and describe the model you selected. 
+
+```{r}
+# Comparison of % Error Rate for both the methods 
+Error_Rate_Comparison <- cbind(Method.I_AIC = (error_rate_1*100),
+Method.II_AIC =(error_rate_2*100),
+Method.I_Training_Validation =(round(error_rate_3*100,2)),
+Method.II_Training_Validation=(round(error_rate_4*100,2)),
+Method.I_LOOCV =(round(LOOCV1*100,2)),
+Method.II_LOOCV =(round(LOOCV2*100,2)),
+Method.I_Kfold =(round(Kfold1*100,2)),
+Method.II_Kfold =(round(Kfold2*100,2)))
+cat("Error Rate Comparison:","\n\n")
+Error_Rate_Comparison
+
+```
+Final Answer: From the Error rate comparison of the 2 models and 4 methods, it is evident that error rates from all the methods are almost similar and addition of student variable to the model reduced the error rate slightly.The performance of model with the student and balance variable is better over the other.
+
+I prefer 10 fold cross-validation over other methods as it is simple,faster(computational time is reduced), reduced bias, variance of the resulting estimate goes up with increasing k and every data point gets to be tested exactly once and used in training k-1 times.
+
+4. Load the \textbf{Smarket} dataset in the \textbf{ISLR} library. This contains Daily Percentage Returns for the S\&P 500 stock index between 2001 and 2005. There are 1250 observations and 9 variables. The variable of interest is Direction. Direction is a factor with levels Down and Up, indicating whether the market had a negative or positive return on a given day.
+
+    Develop two competing logistic regression models (on any subset of the 8 variables) to predict the direction of the stock market. Use data from years 2001 - 2004 as training data and validate the models on the year 2005. Use your preferred method from Question \#3 to select the best model. Justify your selection and summarize the model.
+
+Answer 4: The Smarket data is split into train (with all data expect from year 2005) and test data(with data of year 2005).2 models were fit. The first model is fit with percentage return from previous 5 days,second and third order polynomial terms of percent return variables and volume. The model parameters show that none of the terms are significant at 95% confidence interval.And the Misclassification rate is also higher.
+```{r Question 4}
+
+# subsetting training set
+train.smarket <- Smarket %>% filter(Year < 2005)
+test <-  Smarket %>% filter(Year == 2005)
+
+model4a <-glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 +poly(Lag1,3)+poly(Lag2,2)+poly(Lag3,2)+poly(Lag4,2)+poly(Lag5,3)+I(Volume^2),
+               data = train.smarket, family = binomial)
+summary(model4a)
+
+Predicted_Smarket <- predict(model4a, test, type="response")
+model4a_pred <- ifelse(Predicted_Smarket> 0.5, "Up", "Down")
+model4a_true <- test$Direction
+ rate_4a <-table(model4a_pred, model4a_true)
+
+ error_rate_4a <- (1-(rate_4a[1,1]+rate_4a[2,2])/sum(rate_4a))*100
+
+ cat("Error Rate in % of Model with quadratic terms :",round(error_rate_4a,2),"\n\n")
+ 
+ #MSE3 <-mean((predict(model4a,test,type="response")-test$Direction)^2)
+
+#cat("MSE of model :",MSE3,"\n")
+```
+```{r}
+#Smarket[!train.Smarket,]$Direction
+```
+
+The second model is a linear model with an interaction term.The p values shows that there is a significant correlation between percentage return from previous day and 5 days earlier. The AIC is lower than the previous model but however the misclassification rate is still high.
+```{r}
+train.smarket <- Smarket %>% filter(Year < 2005)
+test <-  Smarket %>% filter(Year == 2005)
+
+model4b <-glm(Direction ~ Lag1 + Lag5+ Lag1*Lag5*Volume,
+               data = train.smarket, family = binomial)
+summary(model4b)
+Predicted_Smarket_b <- predict(model4b, test, type="response")
+model4b_pred <- ifelse(Predicted_Smarket_b> 0.5, "Up", "Down")
+
+model4b_true <- test$Direction
+ rate_4b <-table(model4b_pred, model4b_true)
+ error_rate_4b <- (1-(rate_4b[1,1]+rate_4b[2,2])/sum(rate_4b))*100
+ cat("Error Rate in % of Model with interaction term :",round(error_rate_4b,2))
+ 
+```
+Kfold cross validation is performed using the whole data set with k of 10. Similar models were used. I believe that the linear model is better over model with quadratic terms as AIC of the linear model is lower than the Quadratic model.The method I have used to make this selection is Kfold cross-validation. Comparing the models build, it is clear that the the Error rate of K-fold CV is lower than Training/validation approach. And Kfold CV reduces bias and variance of the models while using every data point for testing exactly once and in training k-1 times.
+```{r}
+model4c <-glm(Direction ~ Lag1 + Lag2 + Lag3 + Lag4 + Lag5 +poly(Lag1,3)+poly(Lag2,2)+poly(Lag3,2)+poly(Lag4,2)+poly(Lag5,3)+I(Volume^2),
+               data = Smarket, family = binomial)
+summary(model4c)
+
+Kfold4c<-cv.glm(Smarket,model4c,K=10,costf)$delta[1]
+   
+cat("Error rate of the model-4c in % :",Kfold4c*100,"\n\n")
+
+model4d <-glm(Direction ~ Lag1 + Lag5+ Lag1*Lag5*Volume,
+               data = Smarket, family = binomial)
+summary(model4d)
+Kfold4d<-cv.glm(Smarket,model4d,K=10,costf)$delta[1]
+   
+cat("Error rate of the model-4d in % :",Kfold4d*100,"\n\n")
+
+```
+
+
+
+
+
+
+
+
+
