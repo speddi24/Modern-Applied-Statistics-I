@@ -1,0 +1,398 @@
+---
+title:  Homework 9, Snigdha Peddi
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message=F,warning=F,echo=F,fig_height=10,fig_width=7,cache = F)
+```
+
+```{r Libraries}
+#install.packages("HSAUR3")
+library(HSAUR3)
+#install.packages("coin")
+library(coin)
+#install.packages("multcomp")
+library(multcomp)
+#install.packages("sandwich")
+library(sandwich)
+#install.packages("lme4")
+library(lme4)
+```
+
+## Exercises
+
+**Question 1.** (Question 15.1 on pg. 295 in HSAUR, modified for clarity) Consider **alpha** dataset from the **coin** package. Compare the results when using **glht**  and TukeyHSD (Refer to Chapter 5 for TukeyHSD). 
+
+### INTRODUCTION
+
+  **Alpha** dataset from **coin** package has 97 observations and 2 variables *alength* and *elevel*.Allele length (alength variable) is a factor  with levels "short","intermediate" and "long". Expression levels of alpha synuclein mRNA is presented in elevel variable.A One -way anova is performed and pairwise comparison is done using General Linear Hypothesis Test (glht) and Tukey HSD.
+  
+### ANALYSIS AND DISCUSSION
+
+  The box plot of Allele length and Expression level shows increasing median values of expression level. 
+  
+```{r Code Chunk-1}
+data("alpha")
+#summary(alpha)
+#head(alpha)
+# Mean of expression levels by factor allele length
+#tapply(alpha$elevel, alpha$alength, mean)
+# Standard of expression levels by factor allele length
+#tapply(alpha$elevel, alpha$alength, sd)
+```
+```{r Code Chunk-2}
+n <- table(alpha$alength)
+levels(alpha$alength) <- abbreviate(levels(alpha$alength), 4)
+plot(elevel ~ alength, data = alpha, varwidth = TRUE,
+ ylab = "Expression Level",  xlab = "NACP-REP1 Allele Length")
+axis(3, at = 1:3, labels = paste("n = ", n))
+```
+
+To check if there is any significant relation between the mean values of these levels a analysis of variance is performed.  
+  
+   \begin{verbatim}
+    amod <- aov(elevel ~ alength, data = alpha)
+   \end{verbatim}
+   
+   A p value of 0.0786 indicate a marginal relation between expression level and allele length.
+   
+  \begin{verbatim}
+    amod_glht <- glht(amod, linfct = mcp(alength = "Tukey"))
+   \end{verbatim}
+
+ To understand the significance of each level of the allele length a general linear hypothesis test is performed.A matrix of linear function is set up by Tukey method for factor allele length.The p values show that their is difference in expression between long and short lengths (0.0614) and and there is no difference in expression for these levels and intermediate level.
+ 
+ 
+```{r Code Chunk-3}
+# Analysis of variance of alpha data
+amod <- aov(elevel ~ alength, data = alpha)
+summary(amod)
+#model.tables(amod,"means")
+
+#set up all-pair comparisons for factor alength'
+amod_glht <- glht(amod, linfct = mcp(alength = "Tukey"))
+summary(amod_glht)
+```
+```{r Code Chunk-4}
+#coef(amod_glht)
+#vcov(amod_glht)
+#confint(amod_glht)
+#amod_glht$linfct
+
+#amod_glht_sw <- glht(amod, linfct = mcp(alength = "Tukey"), 
+      #              vcov = sandwich)
+#summary(amod_glht_sw)
+
+```
+
+
+ Similarly, a pair wise comparison is done with Tukey's HSD (Honestly significant difference) test.
+  
+  \begin{verbatim}
+    TukeyHSD(amod)
+   \end{verbatim}
+   
+ The p values of TukeyHSD test are similar to the glht (a p value of 0.0628 for short-long alleles). This is clearly observed in the plot from both the methods.Both the test indicate that there is a difference in the expression level for short and long allele length and there is no difference between the short and intermediate alleles and intermediate and long alleles.
+ 
+ 
+```{r Code Chunk-5}
+alpha_Tukey <-TukeyHSD(amod)
+alpha_Tukey
+```
+
+
+#### Difference in mean levels of allele length by General Linear Hypothesis test
+
+
+```{r Code Chunk-6}
+par(mai = par("mai") * c(1, 2.1, 1, 0.5))
+layout(matrix(1:2, ncol = 2))
+ci1 <- confint(glht(amod, 
+                    linfct = mcp(alength ="Tukey")))
+ci2 <- confint(glht(amod,
+      linfct = mcp(alength = "Tukey"), 
+      vcov = sandwich))
+
+ox <- expression(paste("Tukey (ordinary ", 
+                       bold(S)[n], "):glht"))
+sx <- expression(paste("Tukey (sandwich ", 
+                       bold(S)[n], ")"))
+
+#plot(ci1,cex.main=1.2,cex.axis=1.2,cex.lab=1.2, xlim = c(-0.6, 2.6), main = ox,
+ # xlab = "Difference", ylim = c(0.5, 3.5))
+#plot(ci2, xlim = c(-0.6, 2.6), main = sx,
+ # xlab = "Difference", ylim = c(0.5, 3.5))
+```
+```{r fig.width=6,fig.height=5,fig.align="center"}
+plot(ci1,cex.main=1.0,cex.axis=1.0,cex.lab=1.0, xlim = c(-0.6, 2.6), main = ox,
+  xlab = "Difference", ylim = c(0.5, 3.5),las=0)
+```
+
+
+
+#### Difference in mean levels of allele length by Tukey's Honestly Significant Difference 
+
+
+
+```{r Code Chunk-7,fig.width=6,fig.height=5}
+plot(alpha_Tukey,las=0)
+```
+```{r Code Chunk-8, fig.width=6,fig.height=4.5}
+library("ggiraphExtra")
+#str(alpha_Tukey)
+ggHSD(alpha_Tukey)
+
+```
+
+
+### REFERENCES
+
+  - Lecture code from Chapter 15, A Hand Book of Statistical Analyses Using R
+  - Lecture by Mike Marin, **ANOVA,ANOVA Multiple Comparision & Kruskal Wallis in R**, August 29,2013 (https://www.youtube.com/watch?v=lpdFr5SZR0Q)
+  - Lecture by Kyle Liu, **ANOVA(One and Two-way Between Subjects) and Tukey HSD in R**, March 23,2015 (https://www.youtube.com/watch?v=6-4mWkOgDtg)
+  - Lecture by Ole Forsberg, **Multiple Comparisons in R**, November 2,2014 (https://www.youtube.com/watch?v=nAs2Kq7d48s)
+  - ggiraphExtra documentation ,**ggHSD:Draw Tukey Honest Significant Differences Plot**,October 23,2020 (https://rdrr.io/cran/ggiraphExtra/man/ggHSD.html)
+
+
+
+**Question 2.** (Question 15.2 on pg. 296 in HSAUR, modified for clarity) Consider **clouds** data from **HSAUR3** package
+
+  a. Read and write a report (no longer than one page) on the clouds data given in Chapter 15 section 15.3.3 from HSAUR Ed 3.
+  b. Consider the linear model fitted to the clouds data as summarized in Chapter 6, Figure 6.5. Set up a matrix K corresponding to the global null hypothesis that all interaction terms present in the model are zero. Test both the global hypothesis and all hypotheses corresponding to each of the interaction terms. 
+  c. How does adjustment for multiple testing change which interactions are significant?
+  
+### INTRODUCTION
+
+  *Clouds* data from **HSAUR3** package consists of experimental data investigating the use of massive amounts of Silver Iodide (100 to 1000 grams per cloud) in cloud seeding to increase rainfall.This data is collected from an area in Florida ,in the summer of 1975. 24 Days were judged suitable for seeding based on the measured suitability criterion. This data has 24 observations and 7 variables.These variables include *Seeding* which is factor indicating if seeding has occurred,*time* is the number of days after the first day of experiment, *sne* is the suitability criterion, *cloudcover* is percentage of experimental area covered with clouds, *prewetness* is the total rainfall in the target area one hour before seeding, *echomotion* is a factor showing if the radar echo is moving or stationary and *rainfall* is the amount of rain in cubic meters times 10^7.
+ 
+### ANALYSIS AND RESULTS
+
+#### Confidence band around regression line:
+
+  The Clouds data is studied and presented by Brian S. Everitt and Torsten Hothorn in their book, A Handbook of Statistical Analyses using R. A Linear regression model is fit using rainfall as dependent variable and S-NE as independent variable . 
+  
+  \begin{equation}
+   rainfall = \beta_0 + \beta_1 sne_i + \epsilon_i
+  \end{equation}
+    
+  A confidence band for the predicted rainfall (around the regression line) is computed making sure that the type I error is controlled for all values of independent variable simultaneously.This can be formulated as a linear combination of the regression coefficients by multiplying with a matrix K to a grid of S-NE values. Here, values ranging from 1.5 to 4.5 with a step size of 0.25 is considered for S-Ne values. 
+
+  \begin{equation}
+   \theta = (\beta_0 , \beta_1)
+  \end{equation}
+  
+  \[
+   K=
+  \left[ {\begin{array}{cc}
+   1 & 1.5 \\
+   1 & 1.75 \\
+   1 & 2.0 \\
+   . & . \\
+   . & . \\
+   1 & 4.50 \\
+  \end{array} } \right]
+  \]
+   
+  \begin{equation}
+    K\theta= (\beta_0 + \beta_1 1.50, \beta_0 + \beta_1 1.75.....\beta_0 + \beta_1 4.50)=\upsilon
+  \end{equation}
+  
+  Simultaneous confidence intervals formed from $k\theta$ forms a confidence band around the regression line. Above equation of $\upsilon$ is used for the real values of S-Ne to compute the confidence band around the regression line of rainfall. A plot showing confidence bands for subset of data with and without seeding is presented below.
+  
+```{r Code Chunk-9}
+data(clouds)
+confband <- function(subset,main)
+  {mod <-lm(rainfall~sne,data=clouds,subset=subset)
+  sne_grid <- seq(from=1.5,to=4.5,by=0.25)
+  K <- cbind(1,sne_grid)
+  sne_ci <-confint(glht(mod,linfct=K))
+  plot(rainfall~sne,data=clouds,subset=subset,xlab="S-Ne criterion",main=main,xlim=range(clouds$sne),
+       ylim=range(clouds$rainfall))
+  abline(mod)
+  lines(sne_grid,sne_ci$confint[,2],lty=2)
+  lines(sne_grid,sne_ci$confint[,3],lty=2)
+}
+
+```
+
+
+```{r Code Chunk-10}
+layout(matrix(1:2,ncol=2))
+confband(clouds$seeding=="no",main="No Seeding")
+confband(clouds$seeding=="yes",main="Seeding")
+```
+
+
+  From the plots it is clear that without seeding there is a high uncertainty for rainfall and with seeding the confidence band is tight indicating less uncertainty.
+  
+  
+#### Global Null Hypothesis verses Hypothesis corresponding to each interaction term:
+
+
+   Global null hypothesis is the first step to check if all the variables are significant and contributing at 95% confidence interval. For this purpose, two linear model with all the interaction terms and without any interaction terms were fit.
+   
+  \begin{verbatim}
+   clouds_formula<- rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time
+   clouds_lm <-lm(clouds_formula,data=cloud)
+  \end{verbatim}
+  
+  \begin{verbatim}
+   clouds.mod <-lm(rainfall~.,data=clouds)
+  \end{verbatim}
+  
+  To verify whether the interaction terms are contributing to the model and effecting the rainfall an anova model is fit for the two linear models.
+  
+  \begin{verbatim}
+   clouds.aov <-anova(clouds_lm,clouds.mod)
+  \end{verbatim}
+
+
+
+```{r Code Chunk-11}
+clouds_formula<- rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time
+#design matrix X* can be computed by
+clouds_lm <-lm(rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time,data=clouds)
+#summary(clouds_lm)
+
+clouds.mod <-lm(rainfall~.,data=clouds)
+#summary(clouds.mod)
+
+clouds.aov <-anova(clouds_lm,clouds.mod,test="Chisq")
+summary(clouds.mod)
+
+#Xstar <-model.matrix(clouds_li,data=clouds)
+
+#attr(Xstar,"contrasts")
+
+#contrasts.arg
+
+#summary(clouds)
+```
+
+
+  A F-statistic value of 1.773 and a p-value of 0.1647 clearly indicate that the two models are not significantly different at 0.05% significance level and we accept null hypothesis. It indicates that the interaction terms do not have significant influence on the rainfall.
+  A General Linear hypothesis test (glht) is performed to study the effect of individual interaction term simultaneously and to verify if the the model satisfies the global null hypothesis($\beta_0=0,\beta_1=0$ etc.).This is equal to linear hypothesis $K\beta=0$, where $K=diag(11)$ in this case. 
+  
+  \begin{verbatim}
+   new.mod <-glht(clouds_lm,linfct=K)
+  \end{verbatim}
+
+  
+```{r Code Chunk-12}
+K <- diag(11)
+RN <-row.names(data.frame(clouds_lm$coefficients))
+row.names(K) <- RN
+new.mod <-glht(clouds_lm,linfct=K)
+summary(new.mod)
+
+```
+```{r}
+#library(sjPlot)
+#sjPlot::tab_model(clouds_lm)
+```
+
+  
+  From the summary of the glht model it is clear that only *seedingyes* has significant effect on rainfall (p-value of 0.0315) and no other interaction terms are significant at 0.05% confidence interval.This rejects the Global Null hypothesis that all the coefficients are zero and do not have significant effect on the rainfall.
+  Similar glht model is fit and multiplicity is adjusted for all the regression coefficients except for the intercept . The p-values indicate that only *seedingyes* has significant effect on rainfall and the Global null hypothesis is rejected.
+
+```{r Code Chunk-13}
+#clouds_lm1 <-lm(rainfall~seeding+seeding:(sne+cloudcover+prewetness+echomotion)+time-1,data=clouds)
+#summary(clouds_lm1)
+matrix1 <- diag(10)
+matrix2 <- matrix(0,nrow=10,ncol=1)
+K1 <- cbind(matrix2,matrix1)
+RN1 <-row.names(data.frame(clouds_lm$coefficients))[-1]
+row.names(K1) <- RN1
+new.mod1 <-glht(clouds_lm,linfct=K1)
+summary(new.mod1)
+
+```
+
+#### Effect of adjustmants done for multiple testing on interaction terms:
+
+   The p-values of the linear model with interaction terms are compared to the p-values of model adjusted for multiplicity. The table of p-values from linear model below shows that both the *seedingyes*(0.00372) and *seedingyes:sne*(0.01040) are significant at 95% confidence interval whereas the adjusted linear model shows that only *seedingyes*(0.0315) significant at 95% Confidence interval.Also, the pvalues of the multiplicity adjusted model are higher than the linear model.
+  
+#### p-values of linear model
+
+```{r Code Chunk-14}
+#summary(clouds_lm)
+#knitr::kable(("p-value"=summary(clouds_lm)$coef[,"Pr(>|t|)"]))
+
+data.frame("p-value"=summary(clouds_lm)$coef[,"Pr(>|t|)"])
+
+```
+
+```{r }
+
+#an <- aov(clouds_lm)
+#summary(aov(clouds_lm))
+
+```
+
+### CONCLUSION
+
+ Cloud Seeding data is used to fit a linear model with S-Ne variable. This model is used to demonstrate the formulation to add confidence intervals to the regression line of rainfall and confidence intervals were plotted for subset of samples with and without seeding. Global Null hypothesis is tested for the linear model with interaction terms and without interaction terms. An Analysis of variance is performed between these models and a p-value of 0.1647 indicate that the Null hypothesis is accepted and there is no difference in the models.A General Linear hypothesis test (glht) is performed to study the effect of individual interaction term simultaneously and to verify if the the model satisfies the global null hypothesis. A comparison of p-values between this multiplicity adjusted model and the linear model with interaction terms have different significant variables at 0.05% significance level.Multiplicity adjusted model indicates only 'seedingyes' is significant but the linear model indicates both 'seedingyes' and 'seedingyes:sne' are significant.
+
+
+### REFERENCES
+
+ - Brian S. Everitt and Torsten Hothorn,*A Handbook of Statistical Analyses using R*,2010,Second Edition
+ - Lecture from Analytics University,*Significance of Global Null Hypothesis-using F-Statistics*, Oct 1),2015,(https://www.youtube.com/watch?v=095bOMlHK80)
+ - Lecture from The Pennsylvania State University, *Interpreting Output:summary(),anova(),aov(),and TukeyHSD()*,(https://online.stat.psu.edu/stat485/lesson/12/12.2)
+ - Torsten hothorn, *Additional multcomp Examples*,'Sep 23,2020',(https://cran.r-project.org/web/packages/multcomp/vignettes/multcomp-examples.pdf)
+
+
+
+**Question 3.** (Question 15.3 on pg. 296 in HSAUR, modified for clarity) or the logistic regression model presented in Chapter 7 in Figure 7.7, perform a multiplicity adjusted test on all regression coefficients (except for the intercept) being zero. Do the conclusions drawn in Chapter 7 remain valid?
+
+
+  The summary of the binomial model indicates that education is highly significant and the gender is unimportant. With increase in number of years of education the probability of agreeing with the statement "Women should take care of running their homes and leave running the country up to men" is decreasing.
+
+  \begin{verbatim}
+   fm1<- cbind(agree,disagree)~gender+education
+   womensrole_glm_1 <-glm(fm1,data=womensrole,family=binomial())
+  \end{verbatim}
+
+```{r Code Chunk-15}
+data(womensrole)
+fm1<- cbind(agree,disagree)~gender+education
+womensrole_glm_1 <-glm(fm1,data=womensrole,family=binomial())
+summary(womensrole_glm_1)
+
+```
+
+  Another model is fit to check the influence of interaction between gender and education on the response. The summary of the model suggests that for Females, as the education increases the number of females agreeing with the statement decreases.
+
+  \begin{verbatim}
+   fm2<- cbind(agree,disagree)~gender*education
+   womensrole_glm_2 <-glm(fm2,data=womensrole,family=binomial())
+  \end{verbatim}
+
+
+```{r Code Chunk-16}
+fm2<- cbind(agree,disagree)~gender*education
+womensrole_glm_2 <-glm(fm2,data=womensrole,family=binomial())
+summary(womensrole_glm_2)
+```
+
+ A multiplicity adjusted test is performed on all the regression coefficients using *glht* (general linear hypothesis test) function on glm model. A 3x4 diagonal matrix, is used as the linear function to test all the interaction terms simultaneously.
+
+  \begin{verbatim}
+   womensrole.new.mod <-glht(womensrole_glm_2,linfct=K)
+  \end{verbatim}
+```{r Code Chunk-17}
+K2 <- diag(3)
+Vec <- as.matrix(c(0,0,0))
+K3 <-cbind(Vec,K2)
+RN1 <-row.names(data.frame(womensrole_glm_2 $coefficients))[-1]
+row.names(K3) <- RN1
+womensrole.new.mod <-glht(womensrole_glm_2,linfct=K3)
+summary(womensrole.new.mod)
+#summary(womensrole.new.mod)$test$pvalues
+```
+
+ Both the Generalized linear model and the multiplicity adjusted test indicate that all the variables and interaction terms are significant at 95% Confidence level.However, the pvalues of multiplicity adjusted test are higher than glm model (Ex: 0.0182>0.00886 for interaction term). And with one unit increase in years of education, 8% of Females agreeing to the statement "Women should take care of running their homes and leave running the country up to men" is decreasing.The conclusions drawn by  Brian S.Everitt and Torsten Hothorn in their book, A Handbook of Statistical Analyses using R,chapter 7 are still valid for womensrole data when compared to multiplicity adjusted model.
+
+
+
